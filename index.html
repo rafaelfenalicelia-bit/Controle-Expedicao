@@ -4806,10 +4806,23 @@ function loadAudit(){
   try{ auditLog=JSON.parse(localStorage.getItem(AUDIT_KEY)||'[]')||[]; }catch(e){ auditLog=[]; }
   try{ auditVistas=JSON.parse(localStorage.getItem(AUDIT_VISTAS_KEY)||'[]')||[]; }catch(e){ auditVistas=[]; }
   try{ auditProprias=JSON.parse(localStorage.getItem(AUDIT_PROPRIAS_KEY)||'[]')||[]; }catch(e){ auditProprias=[]; }
+  // Correção do bug que ressuscitava notificações antigas: marca o backlog atual como
+  // "já visto" uma única vez, para não gerar uma última enxurrada ao atualizar.
+  try{
+    if(localStorage.getItem('controle_audit_fix_v126')!=='1'){
+      auditLog.forEach(e=>{ if(e&&e.id && !auditVistas.includes(e.id)) auditVistas.push(e.id); });
+      auditVistas = auditVistas.slice(-300);
+      localStorage.setItem('controle_audit_fix_v126','1');
+      saveAudit();
+    }
+  }catch(e){}
 }
 function saveAudit(){
   try{ localStorage.setItem(AUDIT_KEY,JSON.stringify(auditLog.slice(0,60))); }catch(e){}
-  try{ localStorage.setItem(AUDIT_VISTAS_KEY,JSON.stringify(auditVistas.slice(0,300))); }catch(e){}
+  // IMPORTANTE: manter os 300 ids MAIS RECENTES (fim da lista). Antes usava slice(0,300),
+  // que guardava os mais ANTIGOS e descartava os recém-vistos — por isso notificações
+  // antigas voltavam como novas a cada recarregamento.
+  try{ localStorage.setItem(AUDIT_VISTAS_KEY,JSON.stringify(auditVistas.slice(-300))); }catch(e){}
   try{ localStorage.setItem(AUDIT_PROPRIAS_KEY,JSON.stringify(auditProprias.slice(-300))); }catch(e){}
 }
 const AUDIT_JANELA = 30*60*1000;   // agrupa alterações da mesma área por 30 min
@@ -4862,6 +4875,7 @@ function mergeAuditDaNuvem(remoto){
   } else {
     auditLog.forEach(e=>{ if(!auditVistas.includes(e.id)) auditVistas.push(e.id); });
   }
+  auditVistas = auditVistas.slice(-300);   // mantém os 300 ids mais recentes (consistente com saveAudit)
   saveAudit();
 }
 let cargasSnapshot = null;
@@ -5499,7 +5513,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v125';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v126';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
