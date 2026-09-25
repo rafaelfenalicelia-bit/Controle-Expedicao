@@ -164,8 +164,17 @@ input[readonly]{background:var(--surface2);color:var(--text2)}
 .carga-card.arrastavel{cursor:default}
 .carga-card.arrastando{opacity:.5;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .carga-card.drop-alvo{border-top:3px solid var(--red)}
-.drag-alca{cursor:grab;color:var(--text3);font-size:16px;margin-right:6px;user-select:none;letter-spacing:-2px}
+.drag-alca{cursor:pointer;color:var(--text3);font-size:16px;margin-right:6px;user-select:none;letter-spacing:-2px;padding:2px 4px;border-radius:5px}
+.drag-alca:hover{background:rgba(0,0,0,.06);color:var(--red)}
 .drag-alca:active{cursor:grabbing}
+/* modo mover por clique */
+.carga-card.pego{outline:2px solid var(--red);outline-offset:1px;box-shadow:0 4px 16px rgba(200,16,46,.25)}
+body.modo-mover-carga .carga-card:not(.pego){cursor:pointer}
+body.modo-mover-carga .carga-card:not(.pego):hover{outline:2px dashed var(--red);outline-offset:1px}
+#mover-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(120%);max-width:560px;width:calc(100% - 24px);background:#2A1A1A;color:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:400;display:flex;align-items:center;gap:12px;transition:transform .18s;font-size:13px;line-height:1.4}
+#mover-bar.open{transform:translateX(-50%) translateY(0)}
+#mover-bar b{color:#FFD9DE}
+#mover-bar button{flex-shrink:0;background:#fff;color:#2A1A1A;border:none;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .carga-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .carga-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}
 .carga-num{font-size:15px;font-weight:700;color:var(--red)}
@@ -1290,6 +1299,8 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 
 <div class="pp-tooltip" id="pp-tooltip"></div>
 
+<div id="mover-bar"><span id="mover-bar-txt"></span><button onclick="cargaCancelarPega()">Cancelar</button></div>
+
 <!-- Editor de estrutura dos módulos (admin) -->
 <div class="ppe-bg" id="ppe-bg" onclick="if(event.target===this)ppEditFechar()">
   <div class="ppe">
@@ -2069,8 +2080,8 @@ function renderCargas(){
     } else {
       corpo=ordenarItens(cons).map(x=>`<tr><td class="prod-cod">${x.cod}</td><td>${x.nome}</td><td>${x.granel?x.qtd+'kg':x.qtd}</td></tr>`).join('');
     }
-    const dragAttrs = ehAdmin ? `draggable="true" ondragstart="cargaDragStart(event,${i})" ondragover="cargaDragOver(event,${i})" ondrop="cargaDrop(event,${i})" ondragend="cargaDragEnd(event)" data-cidx="${i}" data-cdata="${c.data||''}"` : '';
-    const alca = ehAdmin ? '<span class="drag-alca" title="Arraste para reordenar">⠿</span>' : '';
+    const dragAttrs = ehAdmin ? `draggable="true" ondragstart="cargaDragStart(event,${i})" ondragover="cargaDragOver(event,${i})" ondrop="cargaDrop(event,${i})" ondragend="cargaDragEnd(event)" data-cidx="${i}" data-cdata="${c.data||''}" onclick="cargaTalvezColocar(event,${i})"` : '';
+    const alca = ehAdmin ? `<span class="drag-alca" title="Clique para mover (ou arraste)" onclick="cargaPegar(event,${i})">⠿</span>` : '';
     return `<div class="carga-card${ehAdmin?' arrastavel':''}" ${dragAttrs}><div class="carga-head">${alca}<span class="carga-num">${c.num}</span><span class="carga-dest">${c.nome}</span>${c.especial?'<span class="esp-badge">🌟 ESPECIAL</span>':''}<span class="date-badge">${fmtData(c.data)}</span></div>
     <table class="tbl"><thead><tr><th>Cód</th><th>Produto</th><th>Qtd</th></tr></thead><tbody>${corpo}</tbody></table>
     ${c.obs?`<div style="font-size:12px;color:#C0392B;font-weight:600;margin-top:8px">📝 ${esc(c.obs)}</div>`:''}
@@ -2101,24 +2112,58 @@ function cargaDrop(ev,destIdx){
   ev.preventDefault();
   const origIdx=_dragCargaIdx; _dragCargaIdx=null;
   cargaDragEnd(ev);
-  if(origIdx===null || origIdx===destIdx) return;
+  cargaMover(origIdx, destIdx);
+}
+// reordena: coloca a carga origIdx na posição da destIdx (fica logo ACIMA dela), mesma data
+function cargaMover(origIdx, destIdx){
+  if(origIdx===null || origIdx===undefined || origIdx===destIdx) return false;
   const dataAlvo=(cargas[origIdx]||{}).data;
-  if(dataAlvo !== (cargas[destIdx]||{}).data) return;   // segurança: só mesma data
-  // pega os índices das cargas dessa data, NA ORDEM ATUAL DE EXIBIÇÃO
+  if(dataAlvo !== (cargas[destIdx]||{}).data){ toast('Só dá para reordenar dentro da mesma data'); return false; }
   const exib=[...document.querySelectorAll('.carga-card')]
     .map(el=>+el.getAttribute('data-cidx'))
     .filter(idx=>!isNaN(idx) && (cargas[idx]||{}).data===dataAlvo);
   const from=exib.indexOf(origIdx), to=exib.indexOf(destIdx);
-  if(from<0||to<0) return;
-  exib.splice(to,0, exib.splice(from,1)[0]);   // move na lista de exibição
-  // grava 'ordem' sequencial em cada carga dessa data
+  if(from<0||to<0) return false;
+  exib.splice(to,0, exib.splice(from,1)[0]);
   exib.forEach((idx,pos)=>{ if(cargas[idx]) cargas[idx].ordem=pos; });
   ultimaEdicao=Date.now();
   cargasSnapshot = cargas.map(c=>({...c,itens:normalizarItens(c.itens)}));
   saveAll();
   renderCargas();
   toast('Ordem atualizada ✓');
+  return true;
 }
+// ---- mover por CLIQUE (pega → rola a tela com o scroll → clica no destino) ----
+let _cargaPegaId=null;   // id da carga "pega" (usa id p/ sobreviver a re-render)
+function cargaIdxPorId(id){ return cargas.findIndex(c=>c.id===id); }
+function cargaPegar(ev,i){
+  ev.stopPropagation();
+  const c=cargas[i]; if(!c) return;
+  if(_cargaPegaId===c.id){ cargaCancelarPega(); return; }   // clicou de novo: solta a seleção
+  _cargaPegaId=c.id;
+  document.querySelectorAll('.carga-card').forEach(el=>el.classList.remove('pego'));
+  const card=ev.target.closest('.carga-card'); if(card) card.classList.add('pego');
+  document.body.classList.add('modo-mover-carga');
+  const bar=document.getElementById('mover-bar');
+  if(bar){ document.getElementById('mover-bar-txt').innerHTML='✊ Movendo carga <b>'+esc(c.num)+'</b> — role a tela e clique na carga onde quer colocá-la (ela entra logo acima).'; bar.classList.add('open'); }
+}
+function cargaCancelarPega(){
+  _cargaPegaId=null;
+  document.querySelectorAll('.carga-card.pego').forEach(el=>el.classList.remove('pego'));
+  document.body.classList.remove('modo-mover-carga');
+  const bar=document.getElementById('mover-bar'); if(bar) bar.classList.remove('open');
+}
+function cargaTalvezColocar(ev,i){
+  if(_cargaPegaId===null) return;                       // não está movendo: clique normal
+  if(ev.target.closest('button,input,select,textarea,.drag-alca')) return;  // deixa botões/alça agirem
+  const origIdx=cargaIdxPorId(_cargaPegaId);
+  if(origIdx<0){ cargaCancelarPega(); return; }
+  if(origIdx===i){ cargaCancelarPega(); return; }        // clicou na própria carga: cancela
+  ev.preventDefault();
+  const ok=cargaMover(origIdx, i);
+  cargaCancelarPega();
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && _cargaPegaId!==null) cargaCancelarPega(); });
 async function remCarga(i){
   const c=cargas[i];
   if(!c) return;
@@ -5772,7 +5817,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v129';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v130';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
