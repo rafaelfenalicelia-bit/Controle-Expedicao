@@ -4101,16 +4101,24 @@ function tercFoco(r,c){
   if(el){ el.focus(); if(el.select) el.select(); return true; }
   return false;
 }
+// navega pela ORDEM VISUAL da tabela (ordem do DOM), não pelo índice do array —
+// assim o Enter desce para a próxima linha exibida mesmo com a tabela ordenada.
+function tercFocoCel(el){ if(el){ el.focus(); if(el.select) el.select(); return true; } return false; }
 function tercNav(e){
-  const r=parseInt(e.target.dataset.r), c=parseInt(e.target.dataset.c);
+  const c=parseInt(e.target.dataset.c);
+  const colC=[...document.querySelectorAll('.terc-cel[data-c="'+c+'"]')];  // 1 por linha, em ordem visual
+  const idx=colC.indexOf(e.target);
   if(e.key==='Enter'){
     e.preventDefault();
-    if(!tercFoco(r+1,c)) tercFoco(0,c);   // desce; se acabar, volta ao topo da mesma coluna
+    if(idx<0) return;
+    tercFocoCel(colC[(idx+1) % colC.length]);   // desce visualmente; ao fim, volta ao topo da coluna
   } else if(e.key==='Tab' && !e.shiftKey){
-    // anda para o lado; ao fim da linha, pula para a 1ª coluna da linha de baixo
-    if(!document.querySelector(`.terc-cel[data-r="${r}"][data-c="${c+1}"]`)){
+    const r=parseInt(e.target.dataset.r);
+    // ao fim da linha, pula para a 1ª coluna da PRÓXIMA linha visual
+    if(!document.querySelector('.terc-cel[data-r="'+r+'"][data-c="'+(c+1)+'"]')){
       e.preventDefault();
-      if(!tercFoco(r+1,0)) tercFoco(0,0);
+      const col0=[...document.querySelectorAll('.terc-cel[data-c="0"]')];
+      if(idx>=0 && col0.length) tercFocoCel(col0[(idx+1) % col0.length]);
     }
   }
 }
@@ -5764,7 +5772,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v128';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v129';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
