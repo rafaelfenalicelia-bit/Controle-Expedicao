@@ -492,6 +492,38 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-local-sw{display:flex;gap:0;margin:10px 0 14px;border:2px solid var(--red);border-radius:10px;overflow:hidden}
 .pp-local-sw button{flex:1;padding:11px;border:none;background:var(--surface);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;color:var(--red)}
 .pp-local-sw button.on{background:var(--red);color:#fff}
+/* editor de estrutura */
+.ppe-bg,.ppe-conf-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;z-index:210}
+.ppe-bg.open,.ppe-conf-bg.open{display:flex}
+.ppe{background:var(--card,#fff);border-radius:14px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.ppe-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border);font-size:15px;font-weight:800;color:var(--red)}
+.ppe-x{background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer}
+.ppe-body{padding:16px 18px;overflow-y:auto}
+.ppe-locsw{display:flex;border:2px solid var(--red);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.ppe-locsw button{flex:1;padding:9px;border:none;background:var(--card,#fff);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--red)}
+.ppe-locsw button.on{background:var(--red);color:#fff}
+.ppe-cab{display:flex;gap:8px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;padding:0 2px 6px}
+.ppe-cab .c-nome{flex:1}.ppe-cab .c-num{width:74px;text-align:center}.ppe-cab .c-x{width:30px}
+.ppe-mod{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.ppe-mod .c-nome{flex:1}
+.ppe-mod .c-nome input{width:100%;padding:8px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:14px;font-weight:600;background:#fafafa}
+.ppe-mod .c-num{width:74px}
+.ppe-mod .c-num input{width:100%;padding:8px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:14px;text-align:center;background:#fafafa}
+.ppe-mod .c-x{width:30px;text-align:center}
+.ppe-mod .c-x button{background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px}
+.ppe-add{width:100%;margin-top:12px;padding:10px;border:1px dashed var(--red);border-radius:8px;background:#FFF5F6;color:var(--red);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.ppe-tot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:2px solid var(--text);font-weight:800;font-size:14px}
+.ppe-tot .n{color:var(--red);font-size:18px}
+.ppe-nota{font-size:11.5px;color:var(--text3);margin-top:10px;line-height:1.5}
+.ppe-foot{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+.ppe-foot button,.ppe-conf-foot button{flex:1;padding:12px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;border:none}
+.ppe-b-cancel{background:#f0e8e8;color:var(--text2)}
+.ppe-b-salvar{background:var(--red);color:#fff}
+.ppe-conf{background:#fff;border-radius:14px;max-width:420px;width:100%;padding:20px;text-align:center;max-height:90vh;overflow-y:auto}
+.ppe-conf h3{color:var(--red);font-size:16px;margin-bottom:10px}
+.ppe-conf p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px}
+.ppe-conf-lista{background:#FFF3F3;border-radius:8px;padding:10px;font-size:12px;color:#8B1E1E;text-align:left;margin:10px 0;line-height:1.6;max-height:200px;overflow-y:auto}
+.ppe-conf-foot{display:flex;gap:8px;margin-top:14px}
 /* mapa usa a largura toda da tela no PC (escapa do limite do wrap) */
 @media(min-width:720px){
   #screen-palete.active{max-width:100vw}
@@ -1212,6 +1244,8 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <button id="pp-loc-cd" onclick="ppTrocarLocal('cd')">🏢 CD</button>
   </div>
 
+  <button id="pp-btn-estrut" class="btn btn-sm" style="width:100%;margin-bottom:12px;display:none" onclick="ppEditAbrir()">⚙️ Editar estrutura dos módulos</button>
+
   <div class="pp-resumo">
     <div class="pp-box"><div class="pp-num" id="pp-ocup">0</div><div class="pp-lbl">Ocupadas</div></div>
     <div class="pp-box"><div class="pp-num" style="color:#2E7D32" id="pp-livre">0</div><div class="pp-lbl">Livres</div></div>
@@ -1255,6 +1289,41 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 <div class="app-footer">Controle de Expedição <span class="ver-tag" id="ver-tag"></span></div>
 
 <div class="pp-tooltip" id="pp-tooltip"></div>
+
+<!-- Editor de estrutura dos módulos (admin) -->
+<div class="ppe-bg" id="ppe-bg" onclick="if(event.target===this)ppEditFechar()">
+  <div class="ppe">
+    <div class="ppe-head"><span>⚙️ Editar estrutura</span><button class="ppe-x" onclick="ppEditFechar()">✕</button></div>
+    <div class="ppe-body">
+      <div class="ppe-locsw">
+        <button id="ppe-loc-matriz" class="on" onclick="ppEditTrocarLocal('matriz')">🏭 Matriz</button>
+        <button id="ppe-loc-cd" onclick="ppEditTrocarLocal('cd')">🏢 CD</button>
+      </div>
+      <div class="ppe-cab"><span class="c-nome">Módulo</span><span class="c-num">Pos/nível</span><span class="c-num">Níveis</span><span class="c-x"></span></div>
+      <div id="ppe-mods"></div>
+      <button class="ppe-add" onclick="ppEditAddMod()">＋ Adicionar módulo</button>
+      <div class="ppe-tot"><span>Total de posições</span><span class="n" id="ppe-tot">0</span></div>
+      <div class="ppe-nota">Dica: aumentar posições/níveis é seguro. Reduzir ou remover algo ocupado pede confirmação e mostra o que seria perdido.</div>
+    </div>
+    <div class="ppe-foot">
+      <button class="ppe-b-cancel" onclick="ppEditFechar()">Cancelar</button>
+      <button class="ppe-b-salvar" onclick="ppEditSalvar()">Salvar estrutura</button>
+    </div>
+  </div>
+</div>
+<div class="ppe-conf-bg" id="ppe-conf-bg">
+  <div class="ppe-conf">
+    <h3>⚠️ Paletes serão perdidos</h3>
+    <p id="ppe-conf-msg"></p>
+    <div class="ppe-conf-lista" id="ppe-conf-lista"></div>
+    <p style="font-size:12px;color:#8B1E1E">Esta ação não pode ser desfeita.</p>
+    <div class="ppe-conf-foot">
+      <button class="ppe-b-cancel" onclick="document.getElementById('ppe-conf-bg').classList.remove('open')">Cancelar</button>
+      <button class="ppe-b-salvar" onclick="ppEditConfirmarPerda()">Confirmar e remover</button>
+    </div>
+  </div>
+</div>
+
 <div class="pp-modal-bg" id="pp-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;z-index:200">
   <div style="background:var(--surface);border-radius:14px;padding:18px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.3)">
     <h3 id="pp-m-titulo" style="font-size:15px;margin-bottom:2px">Posição</h3>
@@ -1539,6 +1608,7 @@ function enviarCargas(){
     .catch(()=>{ status('offline'); clearTimeout(pushCargasTimer); pushCargasTimer=setTimeout(enviarCargas,5000); }); // mantém pendente e re-tenta
 }
 function pushEstoque(){
+  reconciliarLotesEstoque();   // o estoque enviado bate com a soma dos lotes
   saveLocal(); if(!API_URL) return;
   clearTimeout(pushEstTimer);
   pushEstTimer=setTimeout(()=>enviar({action:'estoque',estoqueQtd}),500);
@@ -1546,6 +1616,7 @@ function pushEstoque(){
 function pushMeta(forcar){
   if(!API_URL) return;
   if(!metaPronta){ metaPushPendente=true; return; } // evita enviar dados locais "de fábrica" por cima da nuvem
+  reconciliarLotesEstoque();   // mantém estoqueQtd coerente com os lotes antes de enviar
   const metaObj={
     contador:val('e-contador'),
     dataContagem:val('e-data'),
@@ -1571,6 +1642,8 @@ function pushMeta(forcar){
     auditVistas: auditVistas,
     portaPalete: ppDados,
     portaPaleteDel: ppDel,
+    portaPaleteEstrut: ppEstruturas,
+    portaPaleteEstrutTs: ppEstruturasTs,
     justif: justificativas,
     snapTerc: snapTerc,
     cargasDel: cargasDel,
@@ -1627,12 +1700,13 @@ function pull(silencioso, forcar){
         if(d.meta.atualizadoEmp) adotarAtualizado(d.meta.atualizadoEmp);
         if(d.meta.concluidoEmp) adotarConcluido(d.meta.concluidoEmp);
         if(d.meta.pendPubEmp) adotarPendPub(d.meta.pendPubEmp);
-        if(d.meta.lotesEst) adotarLotes(d.meta.lotesEst);
+        if(d.meta.lotesEst) adotarLotes(d.meta.lotesEst); reconciliarLotesEstoque();
         if(d.meta.baixaCargas) adotarBaixa(d.meta.baixaCargas);
         if(d.meta.insObs) adotarInsObs(d.meta.insObs);
         if(d.meta.capMaq) adotarCapMaq(d.meta.capMaq);
         if(d.meta.auditVistas) mergeAuditVistas(d.meta.auditVistas);
         if(d.meta.portaPalete||d.meta.portaPaleteDel) ppMergeNuvem(d.meta.portaPalete, d.meta.portaPaleteDel);
+        if(d.meta.portaPaleteEstrut) ppMergeEstrut(d.meta.portaPaleteEstrut, d.meta.portaPaleteEstrutTs||0);
         if(d.meta.audit) mergeAuditDaNuvem(d.meta.audit);
         if(d.meta.justif) mergeJustifDaNuvem(d.meta.justif);
         if(d.meta.snapTerc) mergeSnapTerc(d.meta.snapTerc);
@@ -1705,12 +1779,13 @@ function sincronizarInicial(){
         if(d.meta.atualizadoEmp) adotarAtualizado(d.meta.atualizadoEmp);
         if(d.meta.concluidoEmp) adotarConcluido(d.meta.concluidoEmp);
         if(d.meta.pendPubEmp) adotarPendPub(d.meta.pendPubEmp);
-        if(d.meta.lotesEst) adotarLotes(d.meta.lotesEst);
+        if(d.meta.lotesEst) adotarLotes(d.meta.lotesEst); reconciliarLotesEstoque();
         if(d.meta.baixaCargas) adotarBaixa(d.meta.baixaCargas);
         if(d.meta.insObs) adotarInsObs(d.meta.insObs);
         if(d.meta.capMaq) adotarCapMaq(d.meta.capMaq);
         if(d.meta.auditVistas) mergeAuditVistas(d.meta.auditVistas);
         if(d.meta.portaPalete||d.meta.portaPaleteDel) ppMergeNuvem(d.meta.portaPalete, d.meta.portaPaleteDel);
+        if(d.meta.portaPaleteEstrut) ppMergeEstrut(d.meta.portaPaleteEstrut, d.meta.portaPaleteEstrutTs||0);
         if(d.meta.audit) mergeAuditDaNuvem(d.meta.audit);
         if(d.meta.justif) mergeJustifDaNuvem(d.meta.justif);
         if(d.meta.snapTerc) mergeSnapTerc(d.meta.snapTerc);
@@ -1727,7 +1802,7 @@ function sincronizarInicial(){
         status('online'); toast('Dados carregados da nuvem ✓');
       } else if(localTemDados){
         // nuvem vazia: este aparelho semeia os dados
-        enviar({action:'all',cargas,estoqueQtd,meta:{contador:val('e-contador'),dataContagem:val('e-data'),baseItens:baseItens,baseItensTs:getBaseItensTs(),users:loadUsers(),usersTs:getUsersTs(),usersDel:getUsersDel(),terc:terc,tercTs:getTercTs(),estoqueCeara:estoqueCeara,estoqueOsorio:estoqueOsorio,estEmpTs:getEstEmpTs(),dataEmp:dataEmp,atualizadoEmp:atualizadoEmp,concluidoEmp:concluidoEmp,pendPubEmp:pendPubEmp,lotesEst:lotesEst,baixaCargas:baixaCargas,insObs:{t:insObsTexto,ts:insObsTs},capMaq:capMaq,audit:auditLog,auditVistas:auditVistas,portaPalete:ppDados,portaPaleteDel:ppDel,justif:justificativas,snapTerc:snapTerc,cargasDel:cargasDel,produtos:{custom:customProdutos,overrides:prodOverrides,deleted:prodDeleted}}});
+        enviar({action:'all',cargas,estoqueQtd,meta:{contador:val('e-contador'),dataContagem:val('e-data'),baseItens:baseItens,baseItensTs:getBaseItensTs(),users:loadUsers(),usersTs:getUsersTs(),usersDel:getUsersDel(),terc:terc,tercTs:getTercTs(),estoqueCeara:estoqueCeara,estoqueOsorio:estoqueOsorio,estEmpTs:getEstEmpTs(),dataEmp:dataEmp,atualizadoEmp:atualizadoEmp,concluidoEmp:concluidoEmp,pendPubEmp:pendPubEmp,lotesEst:lotesEst,baixaCargas:baixaCargas,insObs:{t:insObsTexto,ts:insObsTs},capMaq:capMaq,audit:auditLog,auditVistas:auditVistas,portaPalete:ppDados,portaPaleteDel:ppDel,portaPaleteEstrut:ppEstruturas,portaPaleteEstrutTs:ppEstruturasTs,justif:justificativas,snapTerc:snapTerc,cargasDel:cargasDel,produtos:{custom:customProdutos,overrides:prodOverrides,deleted:prodDeleted}}});
         cargasSnapshot = cargas.map(c=>({...c,itens:normalizarItens(c.itens)}));
         toast('Dados enviados para a nuvem ✓');
       } else {
@@ -2425,6 +2500,7 @@ function setEmpresaVis(emp){
 }
 function nomeEmpresa(emp){ return emp==='CEARA'?'CEARÁ':emp==='OSORIO'?'OSÓRIO':'Matriz'; }
 function renderEstVisual(){
+  reconciliarLotesEstoque();   // garante que o resumo reflita a soma dos lotes
   if(typeof atualizarFaixaEst==='function') setTimeout(atualizarFaixaEst,0);
   const est=estoqueDe(empresaVis);
   const nome=nomeEmpresa(empresaVis);
@@ -3122,6 +3198,22 @@ function lotesDoItem(emp,cod){ return (lotesEst[emp]&&lotesEst[emp][cod])||[]; }
 // SOMA (vira o estoque total): conta TUDO que tem quantidade, mesmo lote ainda sem código.
 function somaLotes(emp,cod){
   return lotesDoItem(emp,cod).reduce((a,x)=>a+(+x.q||0),0);
+}
+// Para itens de LOTE, a quantidade real É a soma dos lotes. Como o estoqueQtd e o
+// lotesEst sincronizam por blocos separados, eles podem desencontrar. Esta função
+// re-deriva o estoque a partir dos lotes (fonte única), evitando a divergência
+// entre o lançamento (soma dos lotes) e o resumo (que lê o estoqueQtd).
+function reconciliarLotesEstoque(){
+  ['MATRIZ','CEARA'].forEach(emp=>{
+    const est=estoqueDe(emp);
+    const bag=(lotesEst&&lotesEst[emp])||{};
+    Object.keys(bag).forEach(cod=>{
+      if(!ehItemLote(cod)) return;               // só itens que usam lote
+      const arr=bag[cod]; if(!Array.isArray(arr)||!arr.length) return;  // só se tiver lote lançado
+      const s=somaLotes(emp,cod);
+      if(s>0) est[cod]=s; else delete est[cod];
+    });
+  });
 }
 // há quantidade lançada em lote(s) ainda sem código? (usado para avisar)
 function temLoteSemCodigo(emp,cod){
@@ -5201,6 +5293,7 @@ loadAtualizado();
 loadAudit(); loadJustif(); loadConcluido(); loadPendPub(); loadLotes(); loadBaixa(); loadInsObs(); loadCapMaq();
 loadSnapTerc();
 loadCargasDel();
+ppEstrutCarregar();
 // migra a data única (se existir) para a MATRIZ e reflete no campo
 if(!dataEmp.MATRIZ){ dataEmp.MATRIZ = document.getElementById('e-data').value || hoje(); saveDataEmpLocal(); }
 aplicarDataNoCampo();
@@ -5211,10 +5304,32 @@ const PP_ITENS=[{"cod":1419,"nome":"FARINHA BRANCA","grupo":"FARINHA"},{"cod":14
 const PP_CORES={BATATA:'pp-b-batata',FARINHA:'pp-b-farinha',TAPIOCA:'pp-b-tapioca',FECULA:'pp-b-fecula'};
 const PP_NOMES_GRUPO={BATATA:'Batata',FARINHA:'Farinha',TAPIOCA:'Tapioca',FECULA:'Fécula'};
 // estruturas dos dois locais: [nome do módulo, posições por nível, nº de níveis]
-const PP_ESTRUTURAS={
-  matriz:{ nome:'Matriz', total:112, modulos:[['A',7,4],['B',4,4],['C',9,4],['D',8,4]] },
-  cd:{ nome:'CD', total:54, modulos:[['1',16,3],['2',2,3]] }
+// estrutura PADRÃO (usada só se não houver nada salvo). Agora é EDITÁVEL e sincronizada.
+const PP_ESTRUT_PADRAO={
+  matriz:{ nome:'Matriz', modulos:[['A',7,4],['B',4,4],['C',9,4],['D',8,4]] },
+  cd:{ nome:'CD', modulos:[['1',16,3],['2',2,3]] }
 };
+let ppEstruturas=JSON.parse(JSON.stringify(PP_ESTRUT_PADRAO));
+let ppEstruturasTs=0;
+const PP_ESTRUT_KEY='controle_pp_estrut_v1';
+const PP_ESTRUT_TS_KEY='controle_pp_estrut_ts_v1';
+function ppTotal(loc){ return (ppEstruturas[loc].modulos||[]).reduce((s,m)=>s+(+m[1]||0)*(+m[2]||0),0); }
+function ppEstrutSalvar(){
+  try{ localStorage.setItem(PP_ESTRUT_KEY, JSON.stringify(ppEstruturas)); }catch(e){}
+  try{ localStorage.setItem(PP_ESTRUT_TS_KEY, String(ppEstruturasTs||0)); }catch(e){}
+}
+function ppEstrutCarregar(){
+  try{ const d=JSON.parse(localStorage.getItem(PP_ESTRUT_KEY)||'null'); if(d&&d.matriz&&d.cd&&Array.isArray(d.matriz.modulos)&&Array.isArray(d.cd.modulos)) ppEstruturas=d; }catch(e){}
+  try{ ppEstruturasTs=parseInt(localStorage.getItem(PP_ESTRUT_TS_KEY)||'0')||0; }catch(e){}
+}
+// "mais recente vence" para a estrutura inteira (config compartilhada)
+function ppMergeEstrut(remoto, ts){
+  if(!remoto||typeof remoto!=='object'||!remoto.matriz||!remoto.cd) return;
+  if((+ts||0) > ppEstruturasTs){
+    ppEstruturas=remoto; ppEstruturasTs=+ts||0; ppEstrutSalvar();
+    if(ppMontado){ ppMontarMapa(); ppResumo(); ppMontarResumoProduto(); }
+  }
+}
 // dados por local: { matriz:{id->{cod,qtd,val,ts}}, cd:{...} } e exclusões idem
 let ppDados={matriz:{}, cd:{}};
 let ppDel={matriz:{}, cd:{}};
@@ -5232,7 +5347,7 @@ const PP_DEL_KEY_ANTIGO='controle_porta_palete_del_v1';
 
 function ppEstadoLocal(){ return ppDados[ppLocal]; }
 function ppDelLocal(){ return ppDel[ppLocal]; }
-function ppEstrutura(){ return PP_ESTRUTURAS[ppLocal]; }
+function ppEstrutura(){ return ppEstruturas[ppLocal]; }
 
 function ppSalvarLocal(){
   try{ localStorage.setItem(PP_KEY, JSON.stringify(ppDados)); }catch(e){}
@@ -5457,12 +5572,148 @@ function ppResumo(){
   let vencendo=0,vencido=0;
   Object.values(e).forEach(at=>{ const d=ppDiasVenc(at.val); if(d!==null){ if(d<0)vencido++; else if(d<=30)vencendo++; } });
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('pp-ocup',ocup); set('pp-livre',est.total-ocup); set('pp-vencendo',vencendo); set('pp-vencido',vencido);
+  set('pp-ocup',ocup); set('pp-livre',ppTotal(ppLocal)-ocup); set('pp-vencendo',vencendo); set('pp-vencido',vencido);
   est.modulos.forEach(([nome,porNivel,niveis])=>{ const tot=porNivel*niveis; let oc=0; Object.keys(e).forEach(id=>{ if(id.startsWith(nome))oc++; }); const el=document.getElementById('pp-oc-'+nome); if(el) el.textContent=' ('+oc+'/'+tot+' cheias)'; });
 }
 function ppInit(){
-  if(!ppMontado){ ppCarregarLocal(); ppMontarSelect(); ppMontarMapa(); ppMontado=true; }
+  if(!ppMontado){ ppEstrutCarregar(); ppCarregarLocal(); ppMontarSelect(); ppMontarMapa(); ppMontado=true; }
   ppResumo(); ppMontarResumoProduto();
+  // botão de editar estrutura só para admin
+  const be=document.getElementById('pp-btn-estrut');
+  if(be) be.style.display = (usuarioAtual && usuarioAtual.role==='admin') ? '' : 'none';
+}
+
+// ===== Editor de estrutura dos módulos (admin) =====
+let ppEditWork=null;      // cópia de trabalho: {matriz:{nome,modulos:[{origName,nome,pos,niv}]}, cd:{...}}
+let ppEditLocal='matriz';
+let ppEditPlano=null;     // plano pendente de aplicação (quando há perdas a confirmar)
+function ppEditAbrir(){
+  if(!(usuarioAtual && usuarioAtual.role==='admin')){ toast('Apenas administrador'); return; }
+  ppEditWork={};
+  ['matriz','cd'].forEach(loc=>{
+    ppEditWork[loc]={ nome: ppEstruturas[loc].nome, modulos: (ppEstruturas[loc].modulos||[]).map(m=>({origName:String(m[0]), nome:String(m[0]), pos:+m[1]||0, niv:+m[2]||0})) };
+  });
+  ppEditLocal=ppLocal;
+  document.getElementById('ppe-loc-matriz').classList.toggle('on',ppEditLocal==='matriz');
+  document.getElementById('ppe-loc-cd').classList.toggle('on',ppEditLocal==='cd');
+  ppEditRender();
+  document.getElementById('ppe-bg').classList.add('open');
+}
+function ppEditFechar(){ document.getElementById('ppe-bg').classList.remove('open'); }
+function ppEditTrocarLocal(loc){
+  ppEditLocal=loc;
+  document.getElementById('ppe-loc-matriz').classList.toggle('on',loc==='matriz');
+  document.getElementById('ppe-loc-cd').classList.toggle('on',loc==='cd');
+  ppEditRender();
+}
+function ppEditRender(){
+  const mods=ppEditWork[ppEditLocal].modulos;
+  let html='';
+  mods.forEach((m,i)=>{
+    html+='<div class="ppe-mod">'
+      +'<div class="c-nome"><input value="'+String(m.nome).replace(/"/g,'&quot;')+'" oninput="ppEditSet('+i+',\'nome\',this.value)"></div>'
+      +'<div class="c-num"><input type="number" min="1" value="'+m.pos+'" oninput="ppEditSet('+i+',\'pos\',this.value)"></div>'
+      +'<div class="c-num"><input type="number" min="1" value="'+m.niv+'" oninput="ppEditSet('+i+',\'niv\',this.value)"></div>'
+      +'<div class="c-x"><button onclick="ppEditDelMod('+i+')" title="Remover módulo">🗑</button></div>'
+    +'</div>';
+  });
+  document.getElementById('ppe-mods').innerHTML=html;
+  const tot=mods.reduce((s,m)=>s+(+m.pos||0)*(+m.niv||0),0);
+  document.getElementById('ppe-tot').textContent=tot;
+}
+function ppEditSet(i,campo,val){
+  const m=ppEditWork[ppEditLocal].modulos[i]; if(!m) return;
+  if(campo==='nome'){ m.nome=val; }
+  else { m[campo]=parseInt(val)||0; ppEditRender(); }
+}
+function ppEditDelMod(i){
+  if(!confirm('Remover este módulo inteiro da estrutura?')) return;
+  ppEditWork[ppEditLocal].modulos.splice(i,1);
+  ppEditRender();
+}
+function ppEditAddMod(){
+  ppEditWork[ppEditLocal].modulos.push({origName:null, nome:'NOVO', pos:4, niv:4});
+  ppEditRender();
+}
+// gera o mapa id->{nome,n,i} de uma lista de módulos [ [nome,pos,niv], ... ]
+function ppIdsDeMods(mods){
+  const info={};
+  mods.forEach(([nome,pos,niv])=>{ for(let n=1;n<=niv;n++) for(let i=1;i<=pos;i++){ info[nome+n+'-'+i]={nome,n,i}; } });
+  return info;
+}
+function ppEditSalvar(){
+  // 1) validação
+  for(const loc of ['matriz','cd']){
+    const rows=ppEditWork[loc].modulos;
+    if(!rows.length){ toast('O '+ppEditWork[loc].nome+' precisa de ao menos 1 módulo'); return; }
+    const nomes=new Set();
+    for(const m of rows){
+      const nm=String(m.nome||'').trim();
+      if(!nm){ toast('Há módulo sem nome no '+ppEditWork[loc].nome); ppEditTrocarLocal(loc); return; }
+      if((+m.pos||0)<1 || (+m.niv||0)<1){ toast('Posições e níveis devem ser ≥ 1 ('+ppEditWork[loc].nome+', módulo '+nm+')'); ppEditTrocarLocal(loc); return; }
+      const chave=nm.toUpperCase();
+      if(nomes.has(chave)){ toast('Nome de módulo repetido no '+ppEditWork[loc].nome+': '+nm); ppEditTrocarLocal(loc); return; }
+      nomes.add(chave);
+    }
+  }
+  // 2) monta plano (migrações por renome, perdas por redução/remoção) nos dois locais
+  const plano={ struct:{}, migr:[], perdas:[] };
+  ['matriz','cd'].forEach(loc=>{
+    const rows=ppEditWork[loc].modulos;
+    plano.struct[loc]={ nome: ppEditWork[loc].nome, modulos: rows.map(r=>[String(r.nome).trim(), +r.pos, +r.niv]) };
+    const oldInfo=ppIdsDeMods((ppEstruturas[loc].modulos||[]));
+    const mapNovo={}; rows.forEach(r=>{ if(r.origName!=null) mapNovo[String(r.origName)]=r; });
+    Object.keys(ppDados[loc]).forEach(id=>{
+      const info=oldInfo[id]; if(!info) return;          // id já órfão/desconhecido: não mexe
+      const nr=mapNovo[info.nome];
+      const cod=ppDados[loc][id].cod;
+      if(!nr){ plano.perdas.push({loc,id,cod}); return; }              // módulo removido
+      if(info.n>(+nr.niv) || info.i>(+nr.pos)){ plano.perdas.push({loc,id,cod}); return; } // reduzido
+      const novoId=String(nr.nome).trim()+info.n+'-'+info.i;
+      if(novoId!==id) plano.migr.push({loc,from:id,to:novoId});        // renome: migra
+    });
+  });
+  // 3) se há perdas, confirma; senão aplica direto
+  if(plano.perdas.length){
+    ppEditPlano=plano;
+    const nomeLoc=l=>ppEstruturas[l].nome;
+    const lista=plano.perdas.map(p=>'• '+nomeLoc(p.loc)+' '+p.id+' — '+(ppNome(p.cod)||('cód '+p.cod))).join('<br>');
+    document.getElementById('ppe-conf-msg').textContent='A alteração vai eliminar '+plano.perdas.length+' posição(ões) ocupada(s). Estes paletes serão removidos:';
+    document.getElementById('ppe-conf-lista').innerHTML=lista;
+    document.getElementById('ppe-conf-bg').classList.add('open');
+  } else {
+    ppEditAplicar(plano);
+  }
+}
+function ppEditConfirmarPerda(){
+  document.getElementById('ppe-conf-bg').classList.remove('open');
+  if(ppEditPlano) ppEditAplicar(ppEditPlano);
+  ppEditPlano=null;
+}
+function ppEditAplicar(plano){
+  const agora=Date.now();
+  ['matriz','cd'].forEach(loc=>{
+    const perdasSet=new Set(plano.perdas.filter(p=>p.loc===loc).map(p=>p.id));
+    const migrDe={}; plano.migr.filter(m=>m.loc===loc).forEach(m=>{ migrDe[m.from]=m.to; });
+    const novoData={};
+    Object.keys(ppDados[loc]).forEach(id=>{
+      if(perdasSet.has(id)){ ppDel[loc][id]=agora; return; }        // perdida: tombstone, não carrega
+      if(migrDe[id]){ novoData[migrDe[id]]={...ppDados[loc][id], ts:agora}; ppDel[loc][id]=agora; return; } // migrada
+      novoData[id]=ppDados[loc][id];                                 // inalterada
+    });
+    ppDados[loc]=novoData;
+  });
+  // aplica a nova estrutura
+  ppEstruturas={ matriz:plano.struct.matriz, cd:plano.struct.cd };
+  ppEstruturasTs=agora;
+  ppEstrutSalvar(); ppSalvarLocal();
+  if(API_URL) pushMeta();
+  ppEditFechar();
+  // re-render tudo
+  ppFiltroAtivo='TODOS'; ppItensAbertos={};
+  document.querySelectorAll('.pp-fbtn').forEach(b=>b.classList.toggle('on',b.dataset.f==='TODOS'));
+  ppMontarMapa(); ppResumo(); ppMontarResumoProduto();
+  toast('Estrutura atualizada ✓');
 }
 
 if(API_URL) pull(true, true);   // primeira sincronização forçada (destrava o envio de usuários/base)
@@ -5513,7 +5764,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v126';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v128';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
