@@ -3735,8 +3735,8 @@ function concluirDoAviso(){
 let justificativas = [];   // [{id,ts,user,tipo,num,dest,dataAntes,dataDepois,motivo,detalhe}]
 const JUSTIF_KEY='controle_justif_v1';
 const JUSTIF_MAX=1000;
-const MOTIVOS_EXCLUSAO=['Carga cancelada pelo cliente','Lançamento em duplicidade','Erro de digitação','Pedido remanejado para outra carga','Outro'];
-const MOTIVOS_DATA=['Cliente pediu adiamento','Falta de produto','Atraso na produção','Veículo não compareceu','Antecipação a pedido do cliente','Outro'];
+const MOTIVOS_EXCLUSAO=['Carga cancelada pelo cliente','Segurar carga a pedido do comercial/cliente','Pedido bloqueado / inadimplência','Sem data definida para carregamento','Pedido remanejado / juntado a outra carga','Lançamento em duplicidade','Erro de digitação','Outro'];
+const MOTIVOS_DATA=['Remanejamento / reprogramação','Antecipação de programação (produto pronto)','Cancelamento do Dia D','Falta de produto / produção','Veículo / transportadora não compareceu','Erro na data do lançamento','A pedido do cliente','Outro'];
 
 function loadJustif(){
   try{ justificativas=JSON.parse(localStorage.getItem(JUSTIF_KEY)||'[]')||[]; }catch(e){ justificativas=[]; }
@@ -5817,7 +5817,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v130';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v131';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
