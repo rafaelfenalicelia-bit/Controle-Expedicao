@@ -4947,6 +4947,13 @@ const AUDIT_PROPRIAS_KEY='controle_audit_proprias_v1';
 let auditVistas = [];              // ids de notificações já vistas/lidas (sincroniza entre aparelhos do admin)
 let auditProprias = [];            // ids de ações que EU mesmo fiz (local, não sincroniza)
 let _auditTimers = {};
+// MARCA D'ÁGUA (por aparelho, NÃO sincroniza): maior horário de evento já processado
+// para notificação. Só notifica eventos MAIS NOVOS que isto — assim um evento antigo
+// nunca volta como notificação nova, mesmo se a lista de "vistos" desencontrar.
+let _notifHW = 0;
+const NOTIF_HW_KEY='controle_notif_hw_v1';
+function loadNotifHW(){ try{ _notifHW=parseInt(localStorage.getItem(NOTIF_HW_KEY)||'0')||0; }catch(e){ _notifHW=0; } }
+function saveNotifHW(){ try{ localStorage.setItem(NOTIF_HW_KEY,String(_notifHW||0)); }catch(e){} }
 function loadAudit(){
   try{ auditLog=JSON.parse(localStorage.getItem(AUDIT_KEY)||'[]')||[]; }catch(e){ auditLog=[]; }
   try{ auditVistas=JSON.parse(localStorage.getItem(AUDIT_VISTAS_KEY)||'[]')||[]; }catch(e){ auditVistas=[]; }
@@ -5007,16 +5014,21 @@ function mergeAuditDaNuvem(remoto){
   auditLog=Object.values(mapa).sort((a,b)=>b.ts-a.ts).slice(0,60);
   const souAdmin = !!(usuarioAtual && usuarioAtual.role==='admin');
   if(souAdmin){
+    const maxTs = auditLog.reduce((m,e)=>Math.max(m,+e.ts||0),0);
+    // 1ª vez neste aparelho: alinha a marca com o backlog atual (não notifica o que é antigo)
+    if(_notifHW===0 && maxTs>0){ _notifHW=maxTs; saveNotifHW(); }
     auditLog.slice().reverse().forEach(e=>{
       if(e.user===usuarioAtual.nome){ if(!auditVistas.includes(e.id)) auditVistas.push(e.id); return; }  // minha própria ação: não notifico
       if(auditVistas.includes(e.id)) return;         // já vista/lida (inclusive em outro aparelho meu)
       auditVistas.push(e.id);
+      if((+e.ts||0) <= _notifHW) return;             // 🛡 só notifica evento MAIS NOVO que a marca d'água
       const titulo='Usuário '+e.user+' '+e.acao;
       // não repete a mesma notificação (mesmo usuário/área) dentro da janela
       const jaTem = notificacoes.find(n=> n.tipo==='alteracao' && n.titulo===titulo && (Date.now()-n.ts)<AUDIT_JANELA );
       if(jaTem) return;
       addNotif('alteracao', titulo, ['👤 '+e.user, '🕒 '+fmtDataHora(e.ts)], '', '');
     });
+    if(maxTs>_notifHW){ _notifHW=maxTs; saveNotifHW(); }   // avança a marca
   } else {
     auditLog.forEach(e=>{ if(!auditVistas.includes(e.id)) auditVistas.push(e.id); });
   }
@@ -5338,6 +5350,20 @@ loadLocal();
 garantirIdCargas(cargas);
 cargasSnapshot = cargas.map(c=>({...c,itens:normalizarItens(c.itens)}));
 loadNotifs(); atualizarBadge();
+loadNotifHW();
+// Limpeza única: remove as duplicatas de notificações de alteração já acumuladas
+// (mesmo título repetido), mantendo a mais recente de cada.
+try{
+  if(localStorage.getItem('controle_notif_dedup_v132')!=='1'){
+    const vistos=new Set(); const limpo=[];
+    notificacoes.forEach(n=>{
+      if(n && n.tipo==='alteracao'){ if(vistos.has(n.titulo)) return; vistos.add(n.titulo); }
+      limpo.push(n);
+    });
+    notificacoes=limpo; saveNotifs(); atualizarBadge();
+    localStorage.setItem('controle_notif_dedup_v132','1');
+  }
+}catch(e){}
 loadBaseItens();
 loadTerc();
 loadEstEmp();
@@ -5817,7 +5843,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v131';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v132';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
