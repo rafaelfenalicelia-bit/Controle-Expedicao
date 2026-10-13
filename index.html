@@ -441,6 +441,8 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 /* tab bloqueada para não-admin */
 .tab.locked{opacity:.35;pointer-events:none}
 .tab.hidden-tab{display:none}
+.tab.tab-arrastando{opacity:.45}
+.tab.tab-alvo{box-shadow:inset 3px 0 0 var(--red)}
 .admin-only{display:none}
 
 /* ---- BASE ITENS drawer ---- */
@@ -4409,6 +4411,39 @@ function abrirApp(){
 
 const TABS_ALL=['exp','est','lotes','con','comercial','dash','terc','palete'];
 const TABS_PADRAO=['est','con'];   // telas padrão de um usuário comum
+
+// ===== Ordem das abas (preferência LOCAL deste aparelho, arrastar para reordenar) =====
+const TABORDER_KEY='controle_tab_order_v1';
+let tabOrder=null;
+function loadTabOrder(){ try{ const d=JSON.parse(localStorage.getItem(TABORDER_KEY)||'null'); if(Array.isArray(d)&&d.length) tabOrder=d; }catch(e){} }
+function saveTabOrder(){ try{ localStorage.setItem(TABORDER_KEY, JSON.stringify(tabOrder||[])); }catch(e){} }
+function aplicarOrdemTabs(){
+  const bar=document.querySelector('.tabbar'); if(!bar) return;
+  const ordem=(tabOrder&&tabOrder.length)?tabOrder.slice():[];
+  TABS_ALL.forEach(t=>{ if(!ordem.includes(t)) ordem.push(t); });   // garante que toda aba exista na ordem
+  ordem.forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) bar.appendChild(el); });
+}
+let _tabDragKey=null;
+function reordenarTab(fromKey,toKey){
+  let ordem=[...document.querySelectorAll('.tabbar .tab')].map(el=>el.dataset.tab);
+  const fi=ordem.indexOf(fromKey), ti=ordem.indexOf(toKey);
+  if(fi<0||ti<0||fi===ti) return;
+  ordem.splice(ti,0, ordem.splice(fi,1)[0]);    // coloca a aba arrastada na posição da aba-alvo
+  tabOrder=ordem; saveTabOrder(); aplicarOrdemTabs();
+}
+function ativarArrastarTabs(){
+  document.querySelectorAll('.tabbar .tab').forEach(el=>{
+    if(el.dataset.dragOn) return; el.dataset.dragOn='1';
+    el.setAttribute('draggable','true');
+    el.setAttribute('title','Arraste para reordenar');
+    const key=el.dataset.tab;
+    el.addEventListener('dragstart',e=>{ _tabDragKey=key; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',key);}catch(err){} el.classList.add('tab-arrastando'); });
+    el.addEventListener('dragover',e=>{ if(_tabDragKey===null) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; el.classList.add('tab-alvo'); });
+    el.addEventListener('dragleave',()=>el.classList.remove('tab-alvo'));
+    el.addEventListener('drop',e=>{ e.preventDefault(); el.classList.remove('tab-alvo'); if(_tabDragKey!==null && _tabDragKey!==key) reordenarTab(_tabDragKey,key); _tabDragKey=null; });
+    el.addEventListener('dragend',()=>{ document.querySelectorAll('.tab-arrastando,.tab-alvo').forEach(x=>x.classList.remove('tab-arrastando','tab-alvo')); _tabDragKey=null; });
+  });
+}
 function aplicarPermissoes(){
   if(!usuarioAtual) return;
   // se a própria conta foi excluída pelo admin (via nuvem) -> volta ao login
@@ -4428,6 +4463,7 @@ function aplicarPermissoes(){
   document.getElementById('dd-btn-backup').style.display = isAdmin ? '' : 'none';
   const permitidas = isAdmin ? TABS_ALL : ((me.tabs&&me.tabs.length)?me.tabs:TABS_PADRAO);
   TABS_ALL.forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.classList.toggle('hidden-tab', !permitidas.includes(t)); });
+  aplicarOrdemTabs();   // mantém a ordem personalizada deste aparelho
   document.querySelectorAll('.admin-only').forEach(el=>{
     const isBtn = el.tagName.toLowerCase()==='button' || el.classList.contains('btn');
     el.style.display = isAdmin ? (isBtn ? 'inline-flex' : '') : 'none';
@@ -5351,6 +5387,7 @@ garantirIdCargas(cargas);
 cargasSnapshot = cargas.map(c=>({...c,itens:normalizarItens(c.itens)}));
 loadNotifs(); atualizarBadge();
 loadNotifHW();
+loadTabOrder(); ativarArrastarTabs(); aplicarOrdemTabs();
 // Limpeza única: remove as duplicatas de notificações de alteração já acumuladas
 // (mesmo título repetido), mantendo a mais recente de cada.
 try{
@@ -5843,7 +5880,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v132';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v133';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
