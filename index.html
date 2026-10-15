@@ -2528,12 +2528,12 @@ function renderInsumos(){
 
 // Grupos que aparecem no painel visual e suas cores/títulos
 const VIS_GRUPOS = [
+  {tp:'GRANEL',  label:'ARROZ A GRANEL',             cls:'g-granel'},
   {tp:'PARBO',   label:'PARBOILIZADO', cls:'g-parbo'},
   {tp:'BRANCO',  label:'POLIDO',       cls:'g-branco'},
   {tp:'MIX',     label:'MIX',          cls:'g-mix'},
-  {tp:'GRANEL',  label:'ARROZ A GRANEL',             cls:'g-granel'},
-  {tp:'CÃO',     label:'ARROZ CÃO',                  cls:'g-cao'},
   {tp:'INTEGRAL',label:'INTEGRAL',                   cls:'g-integral'},
+  {tp:'CÃO',     label:'ARROZ CÃO',                  cls:'g-cao'},
   {tp:'FARINHA', label:'FARINHAS E TAPIOCA',         cls:'g-farinha'},
   {tp:'TAPIOCA', label:'FARINHAS E TAPIOCA',         cls:'g-farinha'},
   {tp:'FECULA',  label:'FARINHAS E TAPIOCA',         cls:'g-farinha'},
@@ -5880,7 +5880,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v133';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v134';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
