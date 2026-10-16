@@ -1025,7 +1025,6 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <div class="est-vis-wrap">
       <table class="est-vis-tbl" id="est-vis-tbl">
         <thead>
-          <tr><th colspan="3" style="text-align:center;letter-spacing:.06em" id="est-vis-titletr">ESTOQUE - MATRIZ</th></tr>
           <tr><th>PRODUTO</th><th class="td-fat" id="est-vis-th-fat">TOTAL UN</th><th class="td-kg">TOTAL KG</th></tr>
         </thead>
         <tbody id="est-vis-body"></tbody>
@@ -2563,25 +2562,49 @@ function renderEstVisual(){
   const celFat = v => mostraFat ? `<td class="td-fat">${v}</td>` : '';
 
   // agrupa por grupo-label
-  const blocos = {}; // label -> {cls, itens:[{nome,fat,kg}]}
+  const blocos = {}; // label -> {cls, itens:[{nome,fat,kg,un}], terc}
+  const semPeso = [];  // itens não-granel sem peso: não entram no total em kg
   VIS_GRUPOS.forEach(g=>{
     const prods = PRODUTOS.filter(p=>p.tp===g.tp && p.noEstoque && (p.empresas||['MATRIZ']).includes(empresaVis) && est[p.cod]);
     if(!prods.length) return;
-    if(!blocos[g.label]) blocos[g.label]={cls:g.cls, itens:[]};
+    if(!blocos[g.label]) blocos[g.label]={cls:g.cls, itens:[], terc:GRUPOS_TERC.includes(g.tp)};
     prods.forEach(p=>{
       const qtd = est[p.cod]||0;
       const kg  = p.granel ? qtd : (p.peso>0 ? p.peso*qtd : null);
-      blocos[g.label].itens.push({nome:p.nome, fat:qtd, kg});
+      // unidades p/ os totais: granel não conta (é kg); item lançado em KG vira fardos
+      const un  = p.granel ? null : (/\bKG\b/i.test(p.nome||'') ? qtdEmFardos(p, qtd, maqDoProduto(p)) : qtd);
+      if(kg==null) semPeso.push(p.nome);
+      blocos[g.label].itens.push({nome:p.nome, fat:qtd, kg, un});
     });
   });
 
   let tbody = '', totFat=0, totKg=0;
+  const tot={ arroz:{un:0,kg:0}, terc:{un:0,kg:0} };
+  // campo "Total Arroz": entra logo depois do último grupo de arroz (antes dos terceirizados)
+  let arrozFechado=false;
+  const campoArroz=()=>{
+    arrozFechado=true;
+    if(!(tot.arroz.kg>0)) return '';
+    const kg=tot.arroz.kg, fardos=Math.round(kg/30);
+    return `<tr><td colspan="${cols}" style="padding:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#7A1020;color:#fff;padding:12px 14px;margin:6px 0 10px;border-radius:8px">
+        <span style="font-weight:800;letter-spacing:.04em">🌾 TOTAL ARROZ</span>
+        <span style="display:flex;gap:18px;align-items:baseline">
+          <span><b style="font-size:17px">${kg.toLocaleString('pt-BR',{maximumFractionDigits:0})}</b> <span style="opacity:.85;font-size:12px">kg</span></span>
+          <span><b style="font-size:17px">${fardos.toLocaleString('pt-BR')}</b> <span style="opacity:.85;font-size:12px">fardos (30 kg)</span></span>
+        </span>
+      </div></td></tr>`;
+  };
   Object.entries(blocos).forEach(([label, bloco])=>{
-    let bFat=0, bKg=0;
+    if(bloco.terc && !arrozFechado) tbody += campoArroz();
+    let bFat=0, bKg=0, bTemUn=false;
     tbody += `<tr><td colspan="${cols}" class="est-vis-grupo ${bloco.cls}">${label}</td></tr>`;
     bloco.itens.forEach(it=>{
-      bFat += it.fat;
+      if(it.un!=null){ bFat += it.un; bTemUn=true; }
       if(it.kg!=null) bKg += it.kg;
+      const alvo = bloco.terc ? tot.terc : tot.arroz;
+      if(it.un!=null) alvo.un += it.un;
+      if(it.kg!=null) alvo.kg += it.kg;
       tbody += `<tr>
         <td class="td-nome">${esc(it.nome)}</td>
         ${celFat(it.fat.toLocaleString('pt-BR'))}
@@ -2591,19 +2614,22 @@ function renderEstVisual(){
     totFat += bFat; totKg += bKg;
     tbody += `<tr style="background:#E8EDF5;font-weight:700">
       <td class="td-nome" style="color:#1A3A5C">Total Geral</td>
-      ${celFat(bFat.toLocaleString('pt-BR'))}
+      ${celFat(bTemUn?Math.round(bFat).toLocaleString('pt-BR'):'—')}
       <td class="td-kg">${bKg>0?bKg.toLocaleString('pt-BR',{maximumFractionDigits:0}):'—'}</td>
     </tr>`;
   });
+  if(!arrozFechado) tbody += campoArroz();   // não há terceirizados: o campo vai no fim
 
   if(!tbody){
     tbody = `<tr><td colspan="${cols}" style="text-align:center;padding:20px;color:var(--text2)">Nenhum item com quantidade lançada.<br>Preencha o estoque no modo Lançamento.</td></tr>`;
   }
 
   document.getElementById('est-vis-body').innerHTML = tbody;
-  document.getElementById('est-vis-foot').innerHTML = (totFat>0||totKg>0)
-    ? `<tr><td class="td-nome" style="color:#1A3A5C">Total Geral</td>${celFat(totFat.toLocaleString('pt-BR'))}<td class="td-kg">${totKg>0?totKg.toLocaleString('pt-BR',{maximumFractionDigits:0}):'—'}</td></tr>`
-    : '';
+  let foot='';
+  if(semPeso.length){
+    foot+=`<tr><td colspan="${cols}" style="font-size:11px;color:#B3261E;font-weight:600;padding:8px 10px">⚠ Sem peso cadastrado (fora do total em kg): ${semPeso.map(esc).join(', ')}</td></tr>`;
+  }
+  document.getElementById('est-vis-foot').innerHTML = foot;
 }
 function renderGrupos(){
   const est=estoqueDe(empresaLanc);
@@ -5880,7 +5906,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v134';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v137';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
