@@ -1352,7 +1352,7 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <div style="display:flex;gap:8px;margin-top:16px">
       <button onclick="ppFechar()" style="flex:1;padding:11px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);border:1px solid var(--border)">Cancelar</button>
       <button id="pp-btn-liberar" onclick="ppLiberar()" style="flex:1;padding:11px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:#f0e8e8;color:var(--text2);border:none;display:none">Liberar</button>
-      <button onclick="ppSalvar()" style="flex:1;padding:11px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--red);color:#fff;border:none">Salvar</button>
+      <button id="pp-btn-salvar" onclick="ppSalvar()" style="flex:1;padding:11px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--red);color:#fff;border:none">Salvar</button>
     </div>
   </div>
 </div>
@@ -4560,7 +4560,7 @@ function renderAdminUsers(){
   const users=loadUsers();
   const el=document.getElementById('admin-users-list');
   if(!users.length){el.innerHTML='<div class="empty">Nenhum usuário</div>';return;}
-  const TABS=[['exp','Cargas'],['est','Estoque'],['lotes','Lotes'],['con','Programação'],['comercial','Agenda'],['dash','Painel'],['terc','Compras']];
+  const TABS=[['exp','Cargas'],['est','Estoque'],['lotes','Lotes'],['con','Programação'],['comercial','Agenda'],['dash','Painel'],['terc','Compras'],['palete','Porta-Paletes']];
   let html='';
   users.forEach(u=>{
     const isA=u.role==='admin';
@@ -4577,7 +4577,8 @@ function renderAdminUsers(){
         '<div style="display:flex;flex-wrap:wrap;gap:10px">'+
         TABS.map(([id,label])=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="checkbox" ${tabs.includes(id)?'checked':''} onchange="setUserTab('${esc(u.nome)}','${id}',this.checked)" style="width:17px;height:17px"> ${label}</label>`).join('')+
         '</div>'+
-        `<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><input type="checkbox" ${podeEd?'checked':''} onchange="setUserEdita('${esc(u.nome)}',this.checked)" style="width:17px;height:17px"> ✏️ Pode <b>editar lançamentos de estoque</b></label>`;
+        `<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><input type="checkbox" ${podeEd?'checked':''} onchange="setUserEdita('${esc(u.nome)}',this.checked)" style="width:17px;height:17px"> ✏️ Pode <b>editar lançamentos de estoque</b></label>`+
+        `<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:6px"><input type="checkbox" ${u.editaPalete===true?'checked':''} onchange="setUserEditaPalete('${esc(u.nome)}',this.checked)" style="width:17px;height:17px"> 🗄️ Pode <b>preencher o porta-paletes</b></label>`;
     }
     const delBtn = isA ? '' : `<button class="btn btn-danger btn-sm" onclick="excluirUsuario('${esc(u.nome)}')" title="Excluir usuário">🗑</button>`;
     html+=`<div class="card" style="padding:12px;margin-bottom:8px">
@@ -4600,6 +4601,14 @@ function setUserEdita(nome, ativo){
   u.ts=Date.now();
   salvarUsersSync(users);
   toast((ativo?'Liberado':'Bloqueado')+' editar estoque: '+nome);
+}
+function setUserEditaPalete(nome, ativo){
+  const users=loadUsers();
+  const u=users.find(x=>x.nome===nome); if(!u) return;
+  u.editaPalete = !!ativo;
+  u.ts=Date.now();
+  salvarUsersSync(users);
+  toast((ativo?'Liberado':'Bloqueado')+' preencher porta-paletes: '+nome);
 }
 function setUserTab(nome, tab, ativo){
   const users=loadUsers();
@@ -5544,15 +5553,47 @@ function ppMergeNuvem(remoto, remotoDel){
   if(ppMontado){ ppMontarMapa(); ppResumo(); ppMontarResumoProduto(); }
 }
 
-function ppGrupo(cod){ const it=PP_ITENS.find(x=>x.cod==cod); return it?it.grupo:''; }
-function ppNome(cod){ const it=PP_ITENS.find(x=>x.cod==cod); return it?it.nome:''; }
+// Itens do porta-palete: lidos do CADASTRO do app (Base de Itens, grupos terceirizados)
+// + lista da aba Compras. Item novo cadastrado aparece aqui sozinho.
+// A lista fixa antiga (PP_ITENS) fica só como reserva p/ paletes com código antigo.
+let _ppItensCache=null;
+function _ppGrupoPorNome(n){ n=(n||'').toUpperCase(); if(/BATATA/.test(n))return 'BATATA'; if(/TAPIOCA/.test(n))return 'TAPIOCA'; if(/F[EÉ]CULA/.test(n))return 'FECULA'; if(/FARINHA/.test(n))return 'FARINHA'; return ''; }
+function ppItens(){
+  if(_ppItensCache) return _ppItensCache;
+  const mapa={};
+  (typeof PRODUTOS!=='undefined'?PRODUTOS:[]).forEach(p=>{ if(p && GRUPOS_TERC.includes(p.tp)) mapa[String(p.cod)]={cod:+p.cod||p.cod, nome:p.nome, grupo:p.tp}; });
+  ['matriz','ceara'].forEach(t=>{ ((typeof terc!=='undefined'&&terc[t]&&terc[t].itens)||[]).forEach(it=>{
+    if(!it||it.cod==null||mapa[String(it.cod)]) return;
+    const g=_ppGrupoPorNome(it.nome); if(g) mapa[String(it.cod)]={cod:+it.cod||it.cod, nome:it.nome, grupo:g};
+  }); });
+  let lista=Object.values(mapa);
+  if(!lista.length) lista=PP_ITENS.slice();
+  _ppItensCache=lista; return lista;
+}
+function ppItem(cod){ return ppItens().find(x=>x.cod==cod) || PP_ITENS.find(x=>x.cod==cod) || null; }
+function ppGrupo(cod){ const it=ppItem(cod); return it?it.grupo:''; }
+function ppNome(cod){ const it=ppItem(cod); return it?it.nome:''; }
+// pode preencher o porta-palete? admin sempre; usuário só se liberado
+function podeEditarPalete(){
+  if(!usuarioAtual) return false;
+  if(usuarioAtual.role==='admin') return true;
+  const me=loadUsers().find(u=>u.nome===usuarioAtual.nome);
+  return !!(me && me.editaPalete===true);
+}
 function ppDiasVenc(val){ if(!val) return null; const h=new Date(); h.setHours(0,0,0,0); const d=new Date(val+'T00:00'); return Math.round((d-h)/86400000); }
 function ppFmtData(val){ if(!val) return 'sem validade'; const p=val.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
 function ppMontarSelect(){
   const sel=document.getElementById('pp-m-item'); if(!sel) return;
   let html='<option value="">— selecione —</option>';
-  PP_ITENS.forEach(it=>{ html+='<option value="'+it.cod+'">'+it.cod+' · '+it.nome+'</option>'; });
+  const itens=ppItens();
+  ['FARINHA','TAPIOCA','FECULA','BATATA'].forEach(g=>{
+    const doGrupo=itens.filter(it=>it.grupo===g).sort((a,b)=>(+a.cod||0)-(+b.cod||0));
+    if(!doGrupo.length) return;
+    html+='<optgroup label="'+(PP_NOMES_GRUPO[g]||g)+'">';
+    doGrupo.forEach(it=>{ html+='<option value="'+it.cod+'">'+it.cod+' · '+esc(it.nome)+'</option>'; });
+    html+='</optgroup>';
+  });
   sel.innerHTML=html;
 }
 function ppMontarMapa(){
@@ -5809,12 +5850,17 @@ function ppAbrir(id){
   document.getElementById('pp-m-item').value=at?at.cod:'';
   document.getElementById('pp-m-qtd').value=at?at.qtd:'';
   document.getElementById('pp-m-val').value=at?at.val:'';
-  document.getElementById('pp-btn-liberar').style.display=at?'':'none';
-  document.getElementById('pp-m-titulo').textContent=at?'Editar posição':'Ocupar posição';
+  const pode=podeEditarPalete();
+  ['pp-m-item','pp-m-qtd','pp-m-val'].forEach(x=>{ const el=document.getElementById(x); if(el) el.disabled=!pode; });
+  document.getElementById('pp-btn-liberar').style.display=(at&&pode)?'':'none';
+  const bs=document.getElementById('pp-btn-salvar'); if(bs) bs.style.display=pode?'':'none';
+  document.getElementById('pp-m-titulo').textContent=!pode?'Posição (somente consulta)':(at?'Editar posição':'Ocupar posição');
+  if(!pode && !at){ toast('Posição livre · você tem acesso só para consulta'); ppPosAtual=null; return; }
   document.getElementById('pp-modal-bg').classList.add('open');
 }
 function ppFechar(){ document.getElementById('pp-modal-bg').classList.remove('open'); ppPosAtual=null; }
 function ppSalvar(){
+  if(!podeEditarPalete()){ toast('Você não tem permissão para preencher o porta-paletes'); return; }
   const cod=document.getElementById('pp-m-item').value;
   if(!cod){ toast('Escolha um item'); return; }
   ppEstadoLocal()[ppPosAtual]={cod,qtd:document.getElementById('pp-m-qtd').value,val:document.getElementById('pp-m-val').value, ts:Date.now()};
@@ -5823,6 +5869,7 @@ function ppSalvar(){
   ppPintar(ppPosAtual); ppFechar(); ppResumo(); ppMontarResumoProduto();
 }
 function ppLiberar(){
+  if(!podeEditarPalete()){ toast('Você não tem permissão para preencher o porta-paletes'); return; }
   delete ppEstadoLocal()[ppPosAtual]; ppDelLocal()[ppPosAtual]=Date.now();
   ppSalvarLocal(); if(API_URL) pushMeta();
   ppPintar(ppPosAtual); ppFechar(); ppResumo(); ppMontarResumoProduto();
@@ -5836,7 +5883,9 @@ function ppResumo(){
   est.modulos.forEach(([nome,porNivel,niveis])=>{ const tot=porNivel*niveis; let oc=0; Object.keys(e).forEach(id=>{ if(id.startsWith(nome))oc++; }); const el=document.getElementById('pp-oc-'+nome); if(el) el.textContent=' ('+oc+'/'+tot+' cheias)'; });
 }
 function ppInit(){
-  if(!ppMontado){ ppEstrutCarregar(); ppCarregarLocal(); ppMontarSelect(); ppMontarMapa(); ppMontado=true; }
+  _ppItensCache=null;   // relê o cadastro (itens novos aparecem)
+  if(!ppMontado){ ppEstrutCarregar(); ppCarregarLocal(); ppMontarMapa(); ppMontado=true; }
+  ppMontarSelect();
   ppResumo(); ppMontarResumoProduto();
   // botão de editar estrutura só para admin
   const be=document.getElementById('pp-btn-estrut');
@@ -6024,7 +6073,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v139';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v140';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
