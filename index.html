@@ -583,7 +583,10 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-fbtn .pp-dot{width:12px;height:12px;border-radius:3px}
 .pp-fbtn.on{border-color:var(--text);background:var(--surface2)}
 .pp-mapa-scroll{overflow-x:auto;padding-bottom:6px;margin-top:4px}
-.pp-rua{margin-bottom:16px;display:flex;flex-direction:column;align-items:center}
+/* centraliza o módulo SEM cortar o lado esquerdo quando ele é mais largo que a tela (celular):
+   o bloco ocupa no mínimo a largura da área e cresce com o conteúdo; a centralização é por margem automática */
+.pp-rua{margin-bottom:16px;display:flex;flex-direction:column;align-items:flex-start;width:max-content;min-width:100%}
+.pp-rua > *{margin-left:auto;margin-right:auto}
 .pp-niveis-wrap{display:inline-block}
 .pp-rua-nome{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
 .pp-rua-ocup{font-size:10px;color:var(--text3);font-weight:500;margin-left:6px}
@@ -6073,7 +6076,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v140';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v141';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
