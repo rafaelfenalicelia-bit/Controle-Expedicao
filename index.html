@@ -2554,7 +2554,13 @@ function nomeEmpresa(emp){ return emp==='CEARA'?'CEARÁ':emp==='OSORIO'?'OSÓRIO
 function renderEstVisual(){
   reconciliarLotesEstoque();   // garante que o resumo reflita a soma dos lotes
   if(typeof atualizarFaixaEst==='function') setTimeout(atualizarFaixaEst,0);
-  const est=estoqueDe(empresaVis);
+  // MATRIZ: soma o porta-palete (Matriz) aos terceirizados do lançamento — só na exibição,
+  // os dois valores continuam guardados separados.
+  const pal = (empresaVis==='MATRIZ' && typeof ppTotaisPorCod==='function') ? ppTotaisPorCod('matriz') : {};
+  const est=Object.assign({}, estoqueDe(empresaVis));
+  Object.keys(pal).forEach(c=>{ if(pal[c]>0) est[c]=(+est[c]||0)+pal[c]; });
+  // itens do porta-palete que não estão no cadastro do estoque também aparecem (sem peso → aviso)
+  const extrasPal = Object.keys(pal).filter(c=>pal[c]>0 && !PMAP[c]).map(c=>({cod:+c||c, nome:(ppNome(c)||('Cód '+c)), tp:ppGrupo(c), peso:0, granel:false, noEstoque:true, empresas:['MATRIZ']}));
   const nome=nomeEmpresa(empresaVis);
   const mostraFat = empresaVis!=='OSORIO';   // OSÓRIO mostra só kg
   const cols = mostraFat ? 3 : 2;
@@ -2571,7 +2577,7 @@ function renderEstVisual(){
   const blocos = {}; // label -> {cls, itens:[{nome,fat,kg,un}], terc}
   const semPeso = [];  // itens não-granel sem peso: não entram no total em kg
   VIS_GRUPOS.forEach(g=>{
-    const prods = PRODUTOS.filter(p=>p.tp===g.tp && p.noEstoque && (p.empresas||['MATRIZ']).includes(empresaVis) && est[p.cod]);
+    const prods = PRODUTOS.concat(extrasPal).filter(p=>p.tp===g.tp && est[p.cod] && (pal[p.cod]>0 || (p.noEstoque && (p.empresas||['MATRIZ']).includes(empresaVis))));
     if(!prods.length) return;
     if(!blocos[g.label]) blocos[g.label]={cls:g.cls, itens:[], terc:GRUPOS_TERC.includes(g.tp)};
     prods.forEach(p=>{
@@ -2580,7 +2586,7 @@ function renderEstVisual(){
       // unidades p/ os totais: granel não conta (é kg); item lançado em KG vira fardos
       const un  = p.granel ? null : (/\bKG\b/i.test(p.nome||'') ? qtdEmFardos(p, qtd, maqDoProduto(p)) : qtd);
       if(kg==null) semPeso.push(p.nome);
-      blocos[g.label].itens.push({nome:p.nome, fat:qtd, kg, un});
+      blocos[g.label].itens.push({nome:p.nome, fat:qtd, kg, un, pal:pal[p.cod]||0});
     });
   });
 
@@ -2612,7 +2618,7 @@ function renderEstVisual(){
       if(it.un!=null) alvo.un += it.un;
       if(it.kg!=null) alvo.kg += it.kg;
       tbody += `<tr>
-        <td class="td-nome">${esc(it.nome)}</td>
+        <td class="td-nome">${esc(it.nome)}${it.pal>0?` <span title="${it.pal.toLocaleString('pt-BR')} no porta-palete${it.fat-it.pal>0?' + '+(it.fat-it.pal).toLocaleString('pt-BR')+' do lançamento':''}" style="font-size:11px;opacity:.75;cursor:help">🗄️</span>`:''}</td>
         ${celFat(it.fat.toLocaleString('pt-BR'))}
         <td class="td-kg">${it.kg!=null ? it.kg.toLocaleString('pt-BR',{maximumFractionDigits:0}) : '—'}</td>
       </tr>`;
@@ -5450,7 +5456,6 @@ loadAtualizado();
 loadAudit(); loadJustif(); loadConcluido(); loadPendPub(); loadLotes(); loadBaixa(); loadInsObs(); loadCapMaq();
 loadSnapTerc();
 loadCargasDel();
-ppEstrutCarregar();
 // migra a data única (se existir) para a MATRIZ e reflete no campo
 if(!dataEmp.MATRIZ){ dataEmp.MATRIZ = document.getElementById('e-data').value || hoje(); saveDataEmpLocal(); }
 aplicarDataNoCampo();
@@ -5521,6 +5526,16 @@ function ppCarregarLocal(){
     try{ const d=JSON.parse(localStorage.getItem(PP_DEL_KEY_ANTIGO)||'null'); if(d&&typeof d==='object') ppDel.matriz=d; }catch(e){}
     ppSalvarLocal();   // grava já no formato novo (não apaga o antigo, por segurança)
   }
+}
+// carrega estrutura e paletes JÁ NA ABERTURA do app (antes só ao abrir a aba):
+// o resumo do estoque usa os totais do porta-palete da Matriz.
+ppEstrutCarregar(); ppCarregarLocal();
+// total por código num local do porta-palete (mesma unidade do estoque)
+function ppTotaisPorCod(loc){
+  const t={}; let d={};
+  try{ d=(ppDados&&ppDados[loc])||{}; }catch(e){ return t; }   // se ainda não carregou na abertura do app
+  Object.keys(d).forEach(id=>{ const at=d[id]; if(!at||at.cod==null) return; t[at.cod]=(t[at.cod]||0)+(parseFloat(at.qtd)||0); });
+  return t;
 }
 // junta o porta-palete vindo da nuvem (dois locais), cada posição por "mais recente vence"
 function ppMergeNuvem(remoto, remotoDel){
@@ -5761,6 +5776,8 @@ function ppExportarRelatorio(){
 // cor da barra do tooltip conforme o grupo
 const PP_COR_HEX={BATATA:'#2E7D32',FARINHA:'#5D4037',TAPIOCA:'#00695C',FECULA:'#455A64'};
 function ppTooltipMostrar(el, ev){
+  // só em aparelho com mouse (PC). No celular o toque simula 'mouse em cima' e o balão atrapalha.
+  if(!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
   const tt=document.getElementById('pp-tooltip'); if(!tt) return;
   if(!el.dataset.ttCod) return;   // posição vazia: sem tooltip
   const cor=PP_COR_HEX[el.dataset.ttGrupo]||'#455A64';
@@ -5847,6 +5864,7 @@ function ppTrocarLocal(loc){
   ppItensAbertos={}; ppMontarMapa(); ppResumo(); ppMontarResumoProduto();
 }
 function ppAbrir(id){
+  ppTooltipEsconder();
   ppPosAtual=id;
   document.getElementById('pp-m-posid').textContent='Posição '+id+' · '+ppEstrutura().nome;
   const at=ppEstadoLocal()[id];
@@ -6076,7 +6094,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v141';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v142';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
