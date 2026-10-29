@@ -1254,7 +1254,10 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <button id="pp-loc-cd" onclick="ppTrocarLocal('cd')">🏢 CD</button>
   </div>
 
-  <button id="pp-btn-estrut" class="btn btn-sm" style="width:100%;margin-bottom:12px;display:none" onclick="ppEditAbrir()">⚙️ Editar estrutura dos módulos</button>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button id="pp-btn-estrut" class="btn btn-sm" style="flex:1;margin:0;display:none" onclick="ppEditAbrir()">⚙️ Editar estrutura dos módulos</button>
+    <button class="btn btn-sm" style="flex:1;margin:0;background:var(--red);color:#fff;border-color:var(--red);font-weight:700" onclick="ppExportarRelatorio()">📊 Exportar relatório (Excel)</button>
+  </div>
 
   <div class="pp-resumo">
     <div class="pp-box"><div class="pp-num" id="pp-ocup">0</div><div class="pp-lbl">Ocupadas</div></div>
@@ -5596,6 +5599,121 @@ function ppPintar(id){
   el.removeAttribute('title');
   ppFiltroPos(id);
 }
+// ===== Gerador mínimo de .xlsx (sem biblioteca externa) =====
+// sheets: [{nome, colunas:[{t:'Título', w:largura}], linhas:[[valor,...]], estilos:[[idEstilo,...]]}]
+// estilos: 0 normal · 1 cabeçalho · 2 vermelho (vencido) · 3 amarelo (vencendo) · 4 negrito (total)
+const _crcT=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function _crc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=_crcT[(c^u8[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function _zipStore(arquivos){   // [{nome, dados:Uint8Array}] -> Blob (zip sem compressão)
+  const enc=new TextEncoder(), partes=[], central=[]; let off=0;
+  const u16=v=>[v&255,(v>>8)&255], u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];
+  arquivos.forEach(a=>{
+    const nm=enc.encode(a.nome), crc=_crc32(a.dados), sz=a.dados.length;
+    const loc=new Uint8Array([0x50,0x4B,3,4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(sz), ...u32(sz), ...u16(nm.length), ...u16(0)]);
+    partes.push(loc, nm, a.dados);
+    central.push(new Uint8Array([0x50,0x4B,1,2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(sz), ...u32(sz), ...u16(nm.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nm);
+    off+=loc.length+nm.length+sz;
+  });
+  const tamCentral=central.reduce((s,x)=>s+x.length,0);
+  const fim=new Uint8Array([0x50,0x4B,5,6, ...u16(0), ...u16(0), ...u16(arquivos.length), ...u16(arquivos.length), ...u32(tamCentral), ...u32(off), ...u16(0)]);
+  return new Blob([...partes, ...central, fim], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function _xEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,''); }
+function _colLetra(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; }
+function gerarXlsx(sheets){
+  const enc=new TextEncoder(), arq=[];
+  const add=(nome,txt)=>arq.push({nome, dados:enc.encode(txt)});
+  add('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    +sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>');
+  add('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  add('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+    +sheets.map((s,i)=>`<sheet name="${_xEsc(s.nome).slice(0,31)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>');
+  add('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    +sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')
+    +`<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  add('xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    +'<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB3261E"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF8A6100"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+    +'<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC8102E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF5EFEF"/></patternFill></fill></fills>'
+    +'<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    +'<cellXfs count="5">'
+    +'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    +'<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+    +'<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+    +'<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+    +'<xf numFmtId="0" fontId="4" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+    +'</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+  sheets.forEach((s,si)=>{
+    const ncol=s.colunas.length;
+    const cel=(r,c,v,st)=>{ const ref=_colLetra(c)+r, sa=st?` s="${st}"`:'';
+      if(typeof v==='number' && isFinite(v)) return `<c r="${ref}"${sa}><v>${v}</v></c>`;
+      if(v==null||v==='') return st?`<c r="${ref}"${sa}/>`:'';
+      return `<c r="${ref}"${sa} t="inlineStr"><is><t xml:space="preserve">${_xEsc(v)}</t></is></c>`; };
+    let rows=`<row r="1">${s.colunas.map((c,i)=>cel(1,i,c.t,1)).join('')}</row>`;
+    s.linhas.forEach((ln,ri)=>{ const st=(s.estilos&&s.estilos[ri])||[]; rows+=`<row r="${ri+2}">${ln.map((v,ci)=>cel(ri+2,ci,v,st[ci]||0)).join('')}</row>`; });
+    const ult=_colLetra(ncol-1)+(s.linhas.length+1);
+    add(`xl/worksheets/sheet${si+1}.xml`,'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      +'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+      +'<cols>'+s.colunas.map((c,i)=>`<col min="${i+1}" max="${i+1}" width="${c.w||14}" customWidth="1"/>`).join('')+'</cols>'
+      +`<sheetData>${rows}</sheetData>`+(s.filtro===false?'':`<autoFilter ref="A1:${ult}"/>`)+'</worksheet>');
+  });
+  return _zipStore(arq);
+}
+function baixarArquivo(blob, nome){
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=nome; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+}
+// ===== Relatório do porta-palete em Excel (Matriz + CD) =====
+function ppExportarRelatorio(){
+  const ordemGrupo=Object.keys(PP_NOMES_GRUPO);
+  const det=[], detSt=[], res=[], resSt=[];
+  let tem=false;
+  ['matriz','cd'].forEach(loc=>{
+    const dados=ppDados[loc]||{}, nomeLoc=(ppEstruturas[loc]&&ppEstruturas[loc].nome)||loc;
+    const porItem={};
+    Object.keys(dados).forEach(id=>{
+      const at=dados[id]; if(!at) return;
+      const r=porItem[at.cod]||(porItem[at.cod]={paletes:0,qtd:0,vals:{}});
+      r.paletes++; r.qtd+=(parseFloat(at.qtd)||0);
+      const v=at.val||'';
+      const rv=r.vals[v]||(r.vals[v]={paletes:0,qtd:0,pos:[]});
+      rv.paletes++; rv.qtd+=(parseFloat(at.qtd)||0); rv.pos.push(id);
+    });
+    const cods=Object.keys(porItem);
+    if(cods.length) tem=true;
+    cods.sort((a,b)=>{ const ga=ordemGrupo.indexOf(ppGrupo(a)), gb=ordemGrupo.indexOf(ppGrupo(b)); return (ga-gb)||ppNome(a).localeCompare(ppNome(b)); });
+    let locPal=0, locQtd=0;
+    cods.forEach(cod=>{
+      const r=porItem[cod], grupo=PP_NOMES_GRUPO[ppGrupo(cod)]||ppGrupo(cod)||'', nome=ppNome(cod)||'';
+      locPal+=r.paletes; locQtd+=r.qtd;
+      const vals=Object.keys(r.vals).sort((a,b)=>{ if(!a)return 1; if(!b)return -1; return a.localeCompare(b); });
+      vals.forEach(v=>{
+        const rv=r.vals[v], d=v?ppDiasVenc(v):null;
+        const sit = d===null ? 'Sem validade' : d<0 ? 'VENCIDO' : d<=30 ? 'Vencendo' : 'OK';
+        const st = d===null ? 0 : d<0 ? 2 : d<=30 ? 3 : 0;
+        det.push([nomeLoc, grupo, +cod||cod, nome, v?ppFmtData(v):'', sit, d===null?'':d, rv.paletes, rv.qtd, rv.pos.sort().join(', ')]);
+        detSt.push([0,0,0,0,st,st,st,0,0,0]);
+      });
+      const prox=vals.find(v=>v)||'', dp=prox?ppDiasVenc(prox):null;
+      res.push([nomeLoc, grupo, +cod||cod, nome, r.paletes, r.qtd, prox?ppFmtData(prox):'', dp===null?'':dp]);
+      const st = dp===null ? 0 : dp<0 ? 2 : dp<=30 ? 3 : 0;
+      resSt.push([0,0,0,0,0,0,st,st]);
+    });
+    if(cods.length){
+      res.push(['TOTAL '+nomeLoc.toUpperCase(),'','','',locPal,locQtd,'','']);
+      resSt.push([4,4,4,4,4,4,4,4]);
+    }
+  });
+  if(!tem){ toast('Nenhum palete armazenado para o relatório.'); return; }
+  const blob=gerarXlsx([
+    { nome:'Validades', colunas:[{t:'Local',w:10},{t:'Grupo',w:11},{t:'Cód',w:8},{t:'Produto',w:38},{t:'Validade',w:12},{t:'Situação',w:13},{t:'Dias p/ vencer',w:14},{t:'Paletes',w:9},{t:'Quantidade',w:12},{t:'Posições',w:30}], linhas:det, estilos:detSt },
+    { nome:'Resumo', colunas:[{t:'Local',w:12},{t:'Grupo',w:11},{t:'Cód',w:8},{t:'Produto',w:38},{t:'Paletes',w:9},{t:'Quantidade total',w:16},{t:'Validade mais próxima',w:20},{t:'Dias p/ vencer',w:14}], linhas:res, estilos:resSt, filtro:false }
+  ]);
+  const hoje=new Date(), p=n=>String(n).padStart(2,'0');
+  baixarArquivo(blob, `porta-paletes_${hoje.getFullYear()}-${p(hoje.getMonth()+1)}-${p(hoje.getDate())}.xlsx`);
+  toast('Relatório em Excel baixado ✓');
+}
 // cor da barra do tooltip conforme o grupo
 const PP_COR_HEX={BATATA:'#2E7D32',FARINHA:'#5D4037',TAPIOCA:'#00695C',FECULA:'#455A64'};
 function ppTooltipMostrar(el, ev){
@@ -5906,7 +6024,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v137';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v139';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
