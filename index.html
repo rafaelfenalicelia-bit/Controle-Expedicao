@@ -1263,9 +1263,9 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <button id="pp-loc-cd" onclick="ppTrocarLocal('cd')">🏢 CD</button>
   </div>
 
-  <div style="display:flex;gap:8px;margin-bottom:12px">
+  <div id="pp-linha-botoes" style="display:flex;gap:8px;margin-bottom:12px">
     <button id="pp-btn-estrut" class="btn btn-sm" style="flex:1;margin:0;display:none" onclick="ppEditAbrir()">⚙️ Editar estrutura dos módulos</button>
-    <button class="btn btn-sm" style="flex:1;margin:0;background:var(--red);color:#fff;border-color:var(--red);font-weight:700" onclick="ppExportarRelatorio()">📊 Exportar relatório (Excel)</button>
+    <button class="btn btn-sm" style="flex:1;margin:0;background:var(--red);color:#fff;border-color:var(--red);font-weight:700" id="pp-btn-export" onclick="ppExportarRelatorio()">📊 Exportar relatório (Excel)</button>
   </div>
 
   <div class="pp-resumo">
@@ -1277,7 +1277,7 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 
   <div class="pp-filtro-tit" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
     <span>🔍 Filtrar — toque para destacar só um produto</span>
-    <button class="pp-aviso-btn" onclick="ppAvisoAbrir()" title="Aviso de validade próxima: clique para configurar o prazo">⏰ Aviso de validade: <b id="pp-aviso-txt">30 dias</b></button>
+    <button class="pp-aviso-btn" id="pp-btn-aviso" onclick="ppAvisoAbrir()" title="Aviso de validade próxima: clique para configurar o prazo">⏰ Aviso de validade: <b id="pp-aviso-txt">30 dias</b></button>
   </div>
   <div class="pp-filtros" id="pp-filtros">
     <button class="pp-fbtn on" data-f="TODOS" onclick="ppFiltrar('TODOS')">Todos</button>
@@ -1292,7 +1292,6 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 
   <div class="pp-mapa-scroll" id="pp-mapa"></div>
 
-  <div class="pp-nota">O preenchimento é salvo e <b>sincronizado entre os aparelhos</b>. Toque numa posição para preencher item, quantidade e validade.</div>
 </div>
 </div>
 
@@ -4534,6 +4533,7 @@ function aplicarPermissoes(){
   const permitidas = isAdmin ? TABS_ALL : ((me.tabs&&me.tabs.length)?me.tabs:TABS_PADRAO);
   TABS_ALL.forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.classList.toggle('hidden-tab', !permitidas.includes(t)); });
   aplicarOrdemTabs();   // mantém a ordem personalizada deste aparelho
+  if(typeof ppAplicarPermissoesTela==='function') ppAplicarPermissoesTela();
   document.querySelectorAll('.admin-only').forEach(el=>{
     const isBtn = el.tagName.toLowerCase()==='button' || el.classList.contains('btn');
     el.style.display = isAdmin ? (isBtn ? 'inline-flex' : '') : 'none';
@@ -5779,6 +5779,7 @@ function baixarArquivo(blob, nome){
 }
 // ===== Relatório do porta-palete em Excel (Matriz + CD) =====
 function ppExportarRelatorio(){
+  if(!podeEditarPalete()){ toast('Sem permissão para exportar o relatório'); return; }
   const ordemGrupo=Object.keys(PP_NOMES_GRUPO);
   const det=[], detSt=[], res=[], resSt=[];
   let tem=false;
@@ -5973,9 +5974,14 @@ function ppInit(){
   if(!ppMontado){ ppEstrutCarregar(); ppCarregarLocal(); ppMontarMapa(); ppMontado=true; }
   ppMontarSelect();
   ppResumo(); ppMontarResumoProduto();
-  // botão de editar estrutura só para admin
-  const be=document.getElementById('pp-btn-estrut');
-  if(be) be.style.display = (usuarioAtual && usuarioAtual.role==='admin') ? '' : 'none';
+  ppAplicarPermissoesTela();
+}
+// botões conforme permissão: estrutura = só admin; exportar e aviso = quem pode preencher
+function ppAplicarPermissoesTela(){
+  const admin=!!(usuarioAtual && usuarioAtual.role==='admin'), pode=podeEditarPalete();
+  const vis=(id,on)=>{ const el=document.getElementById(id); if(el) el.style.display=on?'':'none'; };
+  vis('pp-btn-estrut', admin); vis('pp-btn-export', pode); vis('pp-btn-aviso', pode);
+  vis('pp-linha-botoes', admin||pode);
 }
 
 // ===== Janela do parâmetro de aviso de validade =====
@@ -5986,6 +5992,7 @@ function ppAtualizarChipAviso(){
   const bt=el.closest('button'); if(bt) bt.title='Aviso de validade próxima: '+(+ppAviso.padrao)+' dias'+(temGrupo?' (com prazo próprio em algum grupo)':'')+' · clique para configurar';
 }
 function ppAvisoAbrir(){
+  if(!podeEditarPalete()) return;
   const admin=!!(usuarioAtual && usuarioAtual.role==='admin');
   document.getElementById('ppa-padrao').value=ppAviso.padrao;
   document.getElementById('ppa-grupos').innerHTML=['BATATA','FARINHA','TAPIOCA','FECULA'].map(g=>{
@@ -6201,7 +6208,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v143';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v144';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
