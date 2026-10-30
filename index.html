@@ -572,7 +572,8 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-rp-vazio{color:var(--text3);font-size:12.5px;text-align:center;padding:8px 0}
 .pp-modal-bg{display:none}
 .pp-modal-bg.open{display:flex}
-.pp-resumo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 14px}
+.pp-resumo{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0 14px}
+@media(max-width:480px){ .pp-resumo{gap:5px} .pp-resumo .pp-box{padding:8px 3px} .pp-resumo .pp-lbl{font-size:9px} }
 .pp-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
 .pp-box.pp-alerta{border-color:#F0C270;background:#FFFaf0}
 .pp-num{font-size:20px;font-weight:800}
@@ -604,6 +605,7 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-pos.apagado{opacity:.18}
 .pp-b-batata{background:#2E7D32}.pp-b-farinha{background:#5D4037}.pp-b-tapioca{background:#00695C}.pp-b-fecula{background:#455A64}
 .pp-pos.venc-alerta{box-shadow:inset 0 0 0 3px #E8A200}
+.pp-pos.venc-urgente{box-shadow:inset 0 0 0 3px #FF3B30}
 .pp-pos.venc-semval{box-shadow:inset 0 0 0 3px #B47CFF}
 .pp-tag-semval{color:#7B1FA2;font-weight:700}
 .pp-sub-pos{font-size:10.5px;color:var(--text3);margin-left:6px}
@@ -1271,13 +1273,14 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
   <div class="pp-resumo">
     <div class="pp-box"><div class="pp-num" id="pp-ocup">0</div><div class="pp-lbl">Ocupadas</div></div>
     <div class="pp-box"><div class="pp-num" style="color:#2E7D32" id="pp-livre">0</div><div class="pp-lbl">Livres</div></div>
-    <div class="pp-box pp-alerta"><div class="pp-num" style="color:#E8A200" id="pp-vencendo">0</div><div class="pp-lbl">Vencendo</div></div>
+    <div class="pp-box pp-alerta"><div class="pp-num" style="color:#E8A200" id="pp-vencendo">0</div><div class="pp-lbl">Alerta</div></div>
+    <div class="pp-box pp-alerta"><div class="pp-num" style="color:#D32F2F" id="pp-urgente">0</div><div class="pp-lbl">Urgente</div></div>
     <div class="pp-box pp-alerta"><div class="pp-num" style="color:#D32F2F" id="pp-vencido">0</div><div class="pp-lbl">Vencidos</div></div>
   </div>
 
   <div class="pp-filtro-tit" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
     <span>🔍 Filtrar — toque para destacar só um produto</span>
-    <button class="pp-aviso-btn" id="pp-btn-aviso" onclick="ppAvisoAbrir()" title="Aviso de validade próxima: clique para configurar o prazo">⏰ Aviso de validade: <b id="pp-aviso-txt">30 dias</b></button>
+    <button class="pp-aviso-btn" id="pp-btn-aviso" onclick="ppAvisoAbrir()" title="Aviso de validade próxima: clique para configurar o prazo">⏰ Aviso de validade: <b id="pp-aviso-txt">30 / 15 dias</b></button>
   </div>
   <div class="pp-filtros" id="pp-filtros">
     <button class="pp-fbtn on" data-f="TODOS" onclick="ppFiltrar('TODOS')">Todos</button>
@@ -1322,9 +1325,16 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
   <div class="ppe" style="max-width:420px">
     <div class="ppe-head"><span>⏰ Aviso de validade</span><button class="ppe-x" onclick="ppAvisoFechar()">✕</button></div>
     <div class="ppe-body">
-      <div class="ppe-nota" style="margin:0 0 14px">A posição fica <b style="color:#B8860B">amarela</b> quando faltar esse número de dias (ou menos) para vencer. Vencido fica <b style="color:#D32F2F">vermelho</b> e sem validade preenchida fica <b style="color:#7B1FA2">roxo</b>.</div>
-      <div class="fg" style="margin-bottom:14px"><label>Padrão para todos os produtos (dias)</label><input type="number" id="ppa-padrao" min="0" inputmode="numeric"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Prazo próprio por grupo · opcional (vazio = usa o padrão)</div>
+      <div class="ppe-nota" style="margin:0 0 14px">Quando faltar o número de dias de <b style="color:#B8860B">Alerta</b> (ou menos), a posição fica <b style="color:#B8860B">amarela</b>. Quando faltar o de <b style="color:#D32F2F">Urgente</b>, fica <b style="color:#D32F2F">vermelha</b>. Vencido fica vermelho piscando e sem validade fica <b style="color:#7B1FA2">roxo</b>.</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div class="fg" style="flex:1;margin:0"><label style="color:#B8860B">🟡 Alerta (dias)</label><input type="number" id="ppa-pad-a" min="0" inputmode="numeric"></div>
+        <div class="fg" style="flex:1;margin:0"><label style="color:#D32F2F">🔴 Urgente (dias)</label><input type="number" id="ppa-pad-u" min="0" inputmode="numeric"></div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:4px">
+        <div style="flex:1;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.03em">Prazo próprio por grupo · opcional<br><span style="text-transform:none;font-weight:500">vazio = usa o padrão</span></div>
+        <div style="width:72px;text-align:center;font-size:11px;font-weight:700;color:#B8860B">Alerta</div>
+        <div style="width:72px;text-align:center;font-size:11px;font-weight:700;color:#D32F2F">Urgente</div>
+      </div>
       <div id="ppa-grupos"></div>
       <div id="ppa-ro" class="ppe-nota" style="display:none;color:#B3261E;font-weight:600">Só o administrador pode alterar estes prazos.</div>
     </div>
@@ -5569,25 +5579,54 @@ function ppTotaisPorCod(loc){
   Object.keys(d).forEach(id=>{ const at=d[id]; if(!at||at.cod==null) return; t[at.cod]=(t[at.cod]||0)+(parseFloat(at.qtd)||0); });
   return t;
 }
-// ===== Parâmetro de aviso de validade (configurável pelo admin, sincroniza) =====
-// padrao: dias antes do vencimento para ficar "vencendo"; grupos: prazo próprio por grupo (opcional)
+// ===== Parâmetros de aviso de validade (configuráveis pelo admin, sincronizam) =====
+// a = ALERTA (amarelo): faltam a dias ou menos · u = URGENTE (vermelho): faltam u dias ou menos
+// padrao vale para todos; grupos[G] = prazo próprio (opcional, campo a campo)
 const PP_AVISO_KEY='controle_pp_aviso_v1';
-let ppAviso={padrao:30, grupos:{}};
+let ppAviso={padrao:{a:30,u:15}, grupos:{}};
 let ppAvisoTs=0;
+function _ppNum(v){ return (v!=null && v!=='' && !isNaN(+v)) ? +v : null; }
+// aceita o formato antigo (padrao = número único = alerta)
+function ppNormAviso(c){
+  if(!c) return null;
+  let pa, pu;
+  if(typeof c.padrao==='number' || typeof c.padrao==='string'){ pa=_ppNum(c.padrao); if(pa==null) return null; pu=Math.min(30, Math.floor(pa/2)); }
+  else if(c.padrao && typeof c.padrao==='object'){ pa=_ppNum(c.padrao.a); if(pa==null) return null; pu=_ppNum(c.padrao.u); if(pu==null) pu=Math.min(30, Math.floor(pa/2)); }
+  else return null;
+  const grupos={};
+  Object.keys(c.grupos||{}).forEach(g=>{
+    const v=c.grupos[g];
+    if(v && typeof v==='object'){ const a=_ppNum(v.a), u=_ppNum(v.u); if(a!=null||u!=null) grupos[g]={a, u}; }
+    else { const a=_ppNum(v); if(a!=null) grupos[g]={a, u:null}; }
+  });
+  return {padrao:{a:pa, u:pu}, grupos};
+}
 function ppAvisoSalvarLocal(){ try{ localStorage.setItem(PP_AVISO_KEY, JSON.stringify({c:ppAviso, ts:ppAvisoTs})); }catch(e){} }
-function ppAvisoCarregar(){ try{ const d=JSON.parse(localStorage.getItem(PP_AVISO_KEY)||'null'); if(d&&d.c&&!isNaN(+d.c.padrao)){ ppAviso={padrao:+d.c.padrao, grupos:d.c.grupos||{}}; ppAvisoTs=+d.ts||0; } }catch(e){} }
+function ppAvisoCarregar(){ try{ const d=JSON.parse(localStorage.getItem(PP_AVISO_KEY)||'null'); const n=d&&ppNormAviso(d.c); if(n){ ppAviso=n; ppAvisoTs=+d.ts||0; } }catch(e){} }
 function ppMergeAviso(rem, ts){
-  if(!rem||isNaN(+rem.padrao)) return;
+  const n=ppNormAviso(rem); if(!n) return;
   if((+ts||0) > ppAvisoTs){
-    ppAviso={padrao:+rem.padrao, grupos:rem.grupos||{}}; ppAvisoTs=+ts||0; ppAvisoSalvarLocal();
+    ppAviso=n; ppAvisoTs=+ts||0; ppAvisoSalvarLocal();
     if(ppMontado){ ppMontarMapa(); ppResumo(); ppMontarResumoProduto(); ppAtualizarChipAviso(); }
   }
 }
-// dias de aviso para um produto (prazo do grupo, se houver; senão o padrão)
-function ppDiasAviso(cod){
+// prazos que valem para um produto (grupo, se preenchido; senão o padrão). urgente nunca passa do alerta.
+function ppLimites(cod){
   let g=''; try{ g=ppGrupo(cod); }catch(e){}
-  const v=ppAviso&&ppAviso.grupos ? ppAviso.grupos[g] : null;
-  return (v!=null && v!=='' && !isNaN(+v)) ? +v : (+(ppAviso&&ppAviso.padrao)||30);
+  const pg=(ppAviso.grupos||{})[g]||{};
+  const a=(pg.a!=null?pg.a:ppAviso.padrao.a), u0=(pg.u!=null?pg.u:ppAviso.padrao.u);
+  return {a, u:Math.min(u0, a)};
+}
+function ppDiasAviso(cod){ return ppLimites(cod).a; }
+// nível da validade: semval · vencido · urgente · alerta · ok
+function ppNivel(cod, val){
+  const d=val?ppDiasVenc(val):null;
+  if(d===null) return 'semval';
+  if(d<0) return 'vencido';
+  const L=ppLimites(cod);
+  if(d<=L.u) return 'urgente';
+  if(d<=L.a) return 'alerta';
+  return 'ok';
 }
 ppAvisoCarregar();
 // junta o porta-palete vindo da nuvem (dois locais), cada posição por "mais recente vence"
@@ -5698,8 +5737,11 @@ function ppPintar(id){
   if(!at){ el.className='pp-pos vazio'; el.innerHTML=id; el.removeAttribute('title'); ppFiltroPos(id); return; }
   const cor=PP_CORES[ppGrupo(at.cod)]||'pp-b-fecula';
   let cls='pp-pos '+cor; const dias=ppDiasVenc(at.val); let badge='';
-  if(dias===null){ cls+=' venc-semval'; badge='<span class="pp-venc-badge">?</span>'; }
-  else { if(dias<0){cls+=' venc-vencido';badge='<span class="pp-venc-badge">⚠</span>';} else if(dias<=ppDiasAviso(at.cod)){cls+=' venc-alerta';badge='<span class="pp-venc-badge">•</span>';} }
+  const nv=ppNivel(at.cod, at.val);
+  if(nv==='semval'){ cls+=' venc-semval'; badge='<span class="pp-venc-badge">?</span>'; }
+  else if(nv==='vencido'){ cls+=' venc-vencido'; badge='<span class="pp-venc-badge">⚠</span>'; }
+  else if(nv==='urgente'){ cls+=' venc-urgente'; badge='<span class="pp-venc-badge">!</span>'; }
+  else if(nv==='alerta'){ cls+=' venc-alerta'; badge='<span class="pp-venc-badge">•</span>'; }
   el.className=cls;
   let txt=id+badge+'<span class="pp-det">'+at.cod+'</span>'; if(at.qtd) txt+='<span class="pp-det">'+at.qtd+' un</span>';
   el.innerHTML=txt;
@@ -5804,15 +5846,15 @@ function ppExportarRelatorio(){
       const vals=Object.keys(r.vals).sort((a,b)=>{ if(!a)return 1; if(!b)return -1; return a.localeCompare(b); });
       vals.forEach(v=>{
         const rv=r.vals[v], d=v?ppDiasVenc(v):null;
-        const lim=ppDiasAviso(cod);
-        const sit = d===null ? 'Sem validade' : d<0 ? 'VENCIDO' : d<=lim ? 'Vencendo' : 'OK';
-        const st = d===null ? 0 : d<0 ? 2 : d<=lim ? 3 : 0;
+        const nv=ppNivel(cod, v);
+        const sit = {semval:'Sem validade', vencido:'VENCIDO', urgente:'URGENTE', alerta:'Alerta', ok:'OK'}[nv];
+        const st = (nv==='vencido'||nv==='urgente') ? 2 : nv==='alerta' ? 3 : 0;
         det.push([nomeLoc, grupo, +cod||cod, nome, v?ppFmtData(v):'', sit, d===null?'':d, rv.paletes, rv.qtd, rv.pos.sort().join(', ')]);
         detSt.push([0,0,0,0,st,st,st,0,0,0]);
       });
       const prox=vals.find(v=>v)||'', dp=prox?ppDiasVenc(prox):null;
       res.push([nomeLoc, grupo, +cod||cod, nome, r.paletes, r.qtd, prox?ppFmtData(prox):'', dp===null?'':dp]);
-      const st = dp===null ? 0 : dp<0 ? 2 : dp<=ppDiasAviso(cod) ? 3 : 0;
+      const nvp=ppNivel(cod, prox); const st = (nvp==='vencido'||nvp==='urgente') ? 2 : nvp==='alerta' ? 3 : 0;
       resSt.push([0,0,0,0,0,0,st,st]);
     });
     if(cods.length){
@@ -5843,7 +5885,9 @@ function ppTooltipMostrar(el, ev){
   if(dias===null) vencHtml='<div class="pp-tt-venc" style="color:#7B1FA2">? validade não preenchida</div>';
   if(dias!==null){
     if(dias<0) vencHtml='<div class="pp-tt-venc" style="color:#D32F2F">⚠ VENCIDO</div>';
-    else if(dias<=ppDiasAviso(el.dataset.ttCod)) vencHtml='<div class="pp-tt-venc" style="color:#E8A200">• vence em '+dias+' dia'+(dias===1?'':'s')+'</div>';
+    else { const nvt=ppNivel(el.dataset.ttCod, val); const ds=dias+' dia'+(dias===1?'':'s');
+      if(nvt==='urgente') vencHtml='<div class="pp-tt-venc" style="color:#D32F2F">! URGENTE · vence em '+ds+'</div>';
+      else if(nvt==='alerta') vencHtml='<div class="pp-tt-venc" style="color:#E8A200">• alerta · vence em '+ds+'</div>'; }
   }
   tt.innerHTML='<div class="pp-tt-barra" style="background:'+cor+'">'+el.dataset.ttNome+'</div>'
     +'<div class="pp-tt-corpo">'
@@ -5910,7 +5954,10 @@ function ppMontarResumoProduto(){
       const sv=r.validades[v]; const dias=v==='sem'?null:ppDiasVenc(v);
       let cor='#bbb', cls='', txt=v==='sem'?'Sem validade':'Vence '+ppFmtData(v);
       if(dias===null){ cor='#7B1FA2'; cls='pp-tag-semval'; }
-      else { if(dias<0){cor='var(--vencido,#D32F2F)';cls='pp-tag-venc';} else if(dias<=ppDiasAviso(cod)){cor='var(--alerta,#E8A200)';cls='pp-tag-alerta';} }
+      else { const nvr=ppNivel(cod, v);
+        if(nvr==='vencido'){cor='var(--vencido,#D32F2F)';cls='pp-tag-venc';txt+=' · VENCIDO';}
+        else if(nvr==='urgente'){cor='#D32F2F';cls='pp-tag-venc';txt+=' · urgente';}
+        else if(nvr==='alerta'){cor='var(--alerta,#E8A200)';cls='pp-tag-alerta';} }
       html+='<div class="pp-sub-linha"><div class="pp-sub-tag"><span class="pp-sub-dot" style="background:'+cor+'"></span><span class="'+cls+'">'+txt+'</span><span class="pp-sub-pos">'+(sv.pos||[]).sort().join(', ')+'</span></div>'
         +'<div class="pp-sub-vals"><div class="v"><div class="n">'+sv.paletes+'</div><div class="l">paletes</div></div><div class="v"><div class="n">'+sv.qtd+'</div><div class="l">itens</div></div></div></div>';
     });
@@ -5961,8 +6008,9 @@ function ppLiberar(){
 }
 function ppResumo(){
   const est=ppEstrutura(); const e=ppEstadoLocal(); const ocup=Object.keys(e).length;
-  let vencendo=0,vencido=0,semval=0;
-  Object.values(e).forEach(at=>{ const d=ppDiasVenc(at.val); if(d===null){ semval++; } else { if(d<0)vencido++; else if(d<=ppDiasAviso(at.cod))vencendo++; } });
+  let vencendo=0,urgente=0,vencido=0,semval=0;
+  Object.values(e).forEach(at=>{ const nv=ppNivel(at.cod, at.val); if(nv==='semval')semval++; else if(nv==='vencido')vencido++; else if(nv==='urgente')urgente++; else if(nv==='alerta')vencendo++; });
+  { const el=document.getElementById('pp-urgente'); if(el) el.textContent=urgente; }
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   set('pp-semval-n', semval?'('+semval+')':'');
   set('pp-ocup',ocup); set('pp-livre',ppTotal(ppLocal)-ocup); set('pp-vencendo',vencendo); set('pp-vencido',vencido);
@@ -5981,27 +6029,28 @@ function ppAplicarPermissoesTela(){
   const admin=!!(usuarioAtual && usuarioAtual.role==='admin'), pode=podeEditarPalete();
   const vis=(id,on)=>{ const el=document.getElementById(id); if(el) el.style.display=on?'':'none'; };
   vis('pp-btn-estrut', admin); vis('pp-btn-export', pode); vis('pp-btn-aviso', pode);
-  vis('pp-linha-botoes', admin||pode);
+  { const l=document.getElementById('pp-linha-botoes'); if(l) l.style.display=(admin||pode)?'flex':'none'; }   // mantém lado a lado
 }
 
 // ===== Janela do parâmetro de aviso de validade =====
 function ppAtualizarChipAviso(){
   const el=document.getElementById('pp-aviso-txt'); if(!el) return;
-  const temGrupo=Object.keys(ppAviso.grupos||{}).some(g=>ppAviso.grupos[g]!=null && ppAviso.grupos[g]!=='');
-  el.textContent=(+ppAviso.padrao)+' dias'+(temGrupo?'*':'');
-  const bt=el.closest('button'); if(bt) bt.title='Aviso de validade próxima: '+(+ppAviso.padrao)+' dias'+(temGrupo?' (com prazo próprio em algum grupo)':'')+' · clique para configurar';
+  const temGrupo=Object.keys(ppAviso.grupos||{}).length>0;
+  el.textContent=ppAviso.padrao.a+' / '+ppAviso.padrao.u+' dias'+(temGrupo?'*':'');
+  const bt=el.closest('button'); if(bt) bt.title='Alerta: '+ppAviso.padrao.a+' dias · Urgente: '+ppAviso.padrao.u+' dias'+(temGrupo?' (com prazo próprio em algum grupo)':'')+' · clique para configurar';
 }
 function ppAvisoAbrir(){
   if(!podeEditarPalete()) return;
   const admin=!!(usuarioAtual && usuarioAtual.role==='admin');
-  document.getElementById('ppa-padrao').value=ppAviso.padrao;
+  const inp=(id,v,ph)=>'<input type="number" min="0" inputmode="numeric" id="'+id+'" value="'+(v!=null?v:'')+'" placeholder="'+(ph!=null?ph:'')+'" style="width:72px;padding:8px;border:1px solid var(--border);border-radius:7px;text-align:center;font-family:inherit;font-size:14px">';
+  document.getElementById('ppa-pad-a').value=ppAviso.padrao.a;
+  document.getElementById('ppa-pad-u').value=ppAviso.padrao.u;
   document.getElementById('ppa-grupos').innerHTML=['BATATA','FARINHA','TAPIOCA','FECULA'].map(g=>{
-    const v=(ppAviso.grupos||{})[g];
-    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">'
+    const v=(ppAviso.grupos||{})[g]||{};
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'
       +'<span style="width:12px;height:12px;border-radius:3px;background:'+(PP_COR_HEX[g]||'#555')+'"></span>'
       +'<span style="flex:1;font-size:14px;font-weight:600">'+PP_NOMES_GRUPO[g]+'</span>'
-      +'<input type="number" min="0" inputmode="numeric" id="ppa-g-'+g+'" value="'+(v!=null&&v!==''?v:'')+'" placeholder="'+ppAviso.padrao+'" style="width:84px;padding:8px;border:1px solid var(--border);border-radius:7px;text-align:center;font-family:inherit;font-size:14px">'
-      +'<span style="font-size:12px;color:var(--text3)">dias</span></div>';
+      +inp('ppa-g-'+g+'-a', v.a, ppAviso.padrao.a)+inp('ppa-g-'+g+'-u', v.u, ppAviso.padrao.u)+'</div>';
   }).join('');
   document.querySelectorAll('#ppa-bg input').forEach(i=>i.disabled=!admin);
   document.getElementById('ppa-ro').style.display=admin?'none':'';
@@ -6011,16 +6060,19 @@ function ppAvisoAbrir(){
 function ppAvisoFechar(){ document.getElementById('ppa-bg').classList.remove('open'); }
 function ppAvisoSalvarForm(){
   if(!(usuarioAtual && usuarioAtual.role==='admin')){ toast('Apenas administrador'); return; }
-  const pad=parseInt(document.getElementById('ppa-padrao').value,10);
-  if(isNaN(pad)||pad<0){ toast('Informe o prazo padrão em dias (0 ou mais)'); return; }
+  const ler=id=>{ const raw=(document.getElementById(id).value||'').trim(); if(raw==='') return null; const n=parseInt(raw,10); return (isNaN(n)||n<0)?NaN:n; };
+  const pa=ler('ppa-pad-a'), pu=ler('ppa-pad-u');
+  if(pa==null||isNaN(pa)||pu==null||isNaN(pu)){ toast('Informe os dois prazos padrão em dias (0 ou mais)'); return; }
+  if(pu>pa){ toast('O prazo de Urgente não pode ser maior que o de Alerta'); return; }
   const grupos={};
   for(const g of ['BATATA','FARINHA','TAPIOCA','FECULA']){
-    const raw=document.getElementById('ppa-g-'+g).value.trim();
-    if(raw==='') continue;
-    const n=parseInt(raw,10); if(isNaN(n)||n<0){ toast('Prazo inválido em '+PP_NOMES_GRUPO[g]); return; }
-    grupos[g]=n;
+    const a=ler('ppa-g-'+g+'-a'), u=ler('ppa-g-'+g+'-u');
+    if((a!=null&&isNaN(a))||(u!=null&&isNaN(u))){ toast('Prazo inválido em '+PP_NOMES_GRUPO[g]); return; }
+    const ea=(a!=null?a:pa), eu=(u!=null?u:pu);
+    if(eu>ea){ toast(PP_NOMES_GRUPO[g]+': Urgente não pode ser maior que Alerta'); return; }
+    if(a!=null||u!=null) grupos[g]={a, u};
   }
-  ppAviso={padrao:pad, grupos}; ppAvisoTs=Date.now(); ppAvisoSalvarLocal();
+  ppAviso={padrao:{a:pa,u:pu}, grupos}; ppAvisoTs=Date.now(); ppAvisoSalvarLocal();
   if(API_URL) pushMeta();
   ppAvisoFechar(); ppAtualizarChipAviso();
   ppMontarMapa(); ppResumo(); ppMontarResumoProduto();
@@ -6208,7 +6260,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v144';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v145';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
