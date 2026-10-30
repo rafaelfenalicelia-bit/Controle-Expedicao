@@ -578,6 +578,9 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-num{font-size:20px;font-weight:800}
 .pp-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.02em;margin-top:2px}
 .pp-filtro-tit{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);margin-bottom:7px;font-weight:700}
+.pp-aviso-btn{border:1px solid var(--border);background:var(--surface);border-radius:99px;padding:4px 10px;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text2);cursor:pointer;text-transform:none;letter-spacing:0}
+.pp-aviso-btn:hover{border-color:var(--red);color:var(--red)}
+.pp-aviso-btn b{color:var(--text)}
 .pp-filtros{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
 .pp-fbtn{padding:7px 13px;border:2px solid var(--border);border-radius:99px;background:var(--surface);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text2);display:flex;align-items:center;gap:6px}
 .pp-fbtn .pp-dot{width:12px;height:12px;border-radius:3px}
@@ -601,6 +604,9 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .pp-pos.apagado{opacity:.18}
 .pp-b-batata{background:#2E7D32}.pp-b-farinha{background:#5D4037}.pp-b-tapioca{background:#00695C}.pp-b-fecula{background:#455A64}
 .pp-pos.venc-alerta{box-shadow:inset 0 0 0 3px #E8A200}
+.pp-pos.venc-semval{box-shadow:inset 0 0 0 3px #B47CFF}
+.pp-tag-semval{color:#7B1FA2;font-weight:700}
+.pp-sub-pos{font-size:10.5px;color:var(--text3);margin-left:6px}
 .pp-pos.venc-vencido{box-shadow:inset 0 0 0 3px #D32F2F;animation:ppPisca 1.3s infinite}
 @keyframes ppPisca{0%,100%{box-shadow:inset 0 0 0 3px #D32F2F}50%{box-shadow:inset 0 0 0 3px rgba(211,47,47,.35)}}
 .pp-venc-badge{position:absolute;top:2px;right:3px;font-size:9px}
@@ -1269,13 +1275,17 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <div class="pp-box pp-alerta"><div class="pp-num" style="color:#D32F2F" id="pp-vencido">0</div><div class="pp-lbl">Vencidos</div></div>
   </div>
 
-  <div class="pp-filtro-tit">🔍 Filtrar — toque para destacar só um produto</div>
+  <div class="pp-filtro-tit" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <span>🔍 Filtrar — toque para destacar só um produto</span>
+    <button class="pp-aviso-btn" onclick="ppAvisoAbrir()" title="Aviso de validade próxima: clique para configurar o prazo">⏰ Aviso de validade: <b id="pp-aviso-txt">30 dias</b></button>
+  </div>
   <div class="pp-filtros" id="pp-filtros">
     <button class="pp-fbtn on" data-f="TODOS" onclick="ppFiltrar('TODOS')">Todos</button>
     <button class="pp-fbtn" data-f="BATATA" onclick="ppFiltrar('BATATA')"><span class="pp-dot" style="background:#2E7D32"></span>Batata</button>
     <button class="pp-fbtn" data-f="FARINHA" onclick="ppFiltrar('FARINHA')"><span class="pp-dot" style="background:#5D4037"></span>Farinha</button>
     <button class="pp-fbtn" data-f="TAPIOCA" onclick="ppFiltrar('TAPIOCA')"><span class="pp-dot" style="background:#00695C"></span>Tapioca</button>
     <button class="pp-fbtn" data-f="FECULA" onclick="ppFiltrar('FECULA')"><span class="pp-dot" style="background:#455A64"></span>Fécula</button>
+    <button class="pp-fbtn" data-f="SEMVAL" onclick="ppFiltrar('SEMVAL')" title="Posições com produto e sem validade preenchida"><span class="pp-dot" style="background:#fff;box-shadow:inset 0 0 0 3px #7B1FA2"></span>Sem validade <b id="pp-semval-n" style="color:#7B1FA2"></b></button>
   </div>
 
   <div class="pp-resumo-prod" id="pp-resumo-prod"></div>
@@ -1307,6 +1317,24 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 <div class="pp-tooltip" id="pp-tooltip"></div>
 
 <div id="mover-bar"><span id="mover-bar-txt"></span><button onclick="cargaCancelarPega()">Cancelar</button></div>
+
+<!-- Parâmetro de aviso de validade (admin edita) -->
+<div class="ppe-bg" id="ppa-bg" onclick="if(event.target===this)ppAvisoFechar()">
+  <div class="ppe" style="max-width:420px">
+    <div class="ppe-head"><span>⏰ Aviso de validade</span><button class="ppe-x" onclick="ppAvisoFechar()">✕</button></div>
+    <div class="ppe-body">
+      <div class="ppe-nota" style="margin:0 0 14px">A posição fica <b style="color:#B8860B">amarela</b> quando faltar esse número de dias (ou menos) para vencer. Vencido fica <b style="color:#D32F2F">vermelho</b> e sem validade preenchida fica <b style="color:#7B1FA2">roxo</b>.</div>
+      <div class="fg" style="margin-bottom:14px"><label>Padrão para todos os produtos (dias)</label><input type="number" id="ppa-padrao" min="0" inputmode="numeric"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">Prazo próprio por grupo · opcional (vazio = usa o padrão)</div>
+      <div id="ppa-grupos"></div>
+      <div id="ppa-ro" class="ppe-nota" style="display:none;color:#B3261E;font-weight:600">Só o administrador pode alterar estes prazos.</div>
+    </div>
+    <div class="ppe-foot">
+      <button class="ppe-b-cancel" onclick="ppAvisoFechar()">Fechar</button>
+      <button class="ppe-b-salvar" id="ppa-salvar" onclick="ppAvisoSalvarForm()">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Editor de estrutura dos módulos (admin) -->
 <div class="ppe-bg" id="ppe-bg" onclick="if(event.target===this)ppEditFechar()">
@@ -1662,6 +1690,8 @@ function pushMeta(forcar){
     portaPaleteDel: ppDel,
     portaPaleteEstrut: ppEstruturas,
     portaPaleteEstrutTs: ppEstruturasTs,
+    portaPaleteAviso: ppAviso,
+    portaPaleteAvisoTs: ppAvisoTs,
     justif: justificativas,
     snapTerc: snapTerc,
     cargasDel: cargasDel,
@@ -1725,6 +1755,7 @@ function pull(silencioso, forcar){
         if(d.meta.auditVistas) mergeAuditVistas(d.meta.auditVistas);
         if(d.meta.portaPalete||d.meta.portaPaleteDel) ppMergeNuvem(d.meta.portaPalete, d.meta.portaPaleteDel);
         if(d.meta.portaPaleteEstrut) ppMergeEstrut(d.meta.portaPaleteEstrut, d.meta.portaPaleteEstrutTs||0);
+        if(d.meta.portaPaleteAviso) ppMergeAviso(d.meta.portaPaleteAviso, d.meta.portaPaleteAvisoTs||0);
         if(d.meta.audit) mergeAuditDaNuvem(d.meta.audit);
         if(d.meta.justif) mergeJustifDaNuvem(d.meta.justif);
         if(d.meta.snapTerc) mergeSnapTerc(d.meta.snapTerc);
@@ -1804,6 +1835,7 @@ function sincronizarInicial(){
         if(d.meta.auditVistas) mergeAuditVistas(d.meta.auditVistas);
         if(d.meta.portaPalete||d.meta.portaPaleteDel) ppMergeNuvem(d.meta.portaPalete, d.meta.portaPaleteDel);
         if(d.meta.portaPaleteEstrut) ppMergeEstrut(d.meta.portaPaleteEstrut, d.meta.portaPaleteEstrutTs||0);
+        if(d.meta.portaPaleteAviso) ppMergeAviso(d.meta.portaPaleteAviso, d.meta.portaPaleteAvisoTs||0);
         if(d.meta.audit) mergeAuditDaNuvem(d.meta.audit);
         if(d.meta.justif) mergeJustifDaNuvem(d.meta.justif);
         if(d.meta.snapTerc) mergeSnapTerc(d.meta.snapTerc);
@@ -1820,7 +1852,7 @@ function sincronizarInicial(){
         status('online'); toast('Dados carregados da nuvem ✓');
       } else if(localTemDados){
         // nuvem vazia: este aparelho semeia os dados
-        enviar({action:'all',cargas,estoqueQtd,meta:{contador:val('e-contador'),dataContagem:val('e-data'),baseItens:baseItens,baseItensTs:getBaseItensTs(),users:loadUsers(),usersTs:getUsersTs(),usersDel:getUsersDel(),terc:terc,tercTs:getTercTs(),estoqueCeara:estoqueCeara,estoqueOsorio:estoqueOsorio,estEmpTs:getEstEmpTs(),dataEmp:dataEmp,atualizadoEmp:atualizadoEmp,concluidoEmp:concluidoEmp,pendPubEmp:pendPubEmp,lotesEst:lotesEst,baixaCargas:baixaCargas,insObs:{t:insObsTexto,ts:insObsTs},capMaq:capMaq,audit:auditLog,auditVistas:auditVistas,portaPalete:ppDados,portaPaleteDel:ppDel,portaPaleteEstrut:ppEstruturas,portaPaleteEstrutTs:ppEstruturasTs,justif:justificativas,snapTerc:snapTerc,cargasDel:cargasDel,produtos:{custom:customProdutos,overrides:prodOverrides,deleted:prodDeleted}}});
+        enviar({action:'all',cargas,estoqueQtd,meta:{contador:val('e-contador'),dataContagem:val('e-data'),baseItens:baseItens,baseItensTs:getBaseItensTs(),users:loadUsers(),usersTs:getUsersTs(),usersDel:getUsersDel(),terc:terc,tercTs:getTercTs(),estoqueCeara:estoqueCeara,estoqueOsorio:estoqueOsorio,estEmpTs:getEstEmpTs(),dataEmp:dataEmp,atualizadoEmp:atualizadoEmp,concluidoEmp:concluidoEmp,pendPubEmp:pendPubEmp,lotesEst:lotesEst,baixaCargas:baixaCargas,insObs:{t:insObsTexto,ts:insObsTs},capMaq:capMaq,audit:auditLog,auditVistas:auditVistas,portaPalete:ppDados,portaPaleteDel:ppDel,portaPaleteEstrut:ppEstruturas,portaPaleteEstrutTs:ppEstruturasTs,portaPaleteAviso:ppAviso,portaPaleteAvisoTs:ppAvisoTs,justif:justificativas,snapTerc:snapTerc,cargasDel:cargasDel,produtos:{custom:customProdutos,overrides:prodOverrides,deleted:prodDeleted}}});
         cargasSnapshot = cargas.map(c=>({...c,itens:normalizarItens(c.itens)}));
         toast('Dados enviados para a nuvem ✓');
       } else {
@@ -5537,6 +5569,27 @@ function ppTotaisPorCod(loc){
   Object.keys(d).forEach(id=>{ const at=d[id]; if(!at||at.cod==null) return; t[at.cod]=(t[at.cod]||0)+(parseFloat(at.qtd)||0); });
   return t;
 }
+// ===== Parâmetro de aviso de validade (configurável pelo admin, sincroniza) =====
+// padrao: dias antes do vencimento para ficar "vencendo"; grupos: prazo próprio por grupo (opcional)
+const PP_AVISO_KEY='controle_pp_aviso_v1';
+let ppAviso={padrao:30, grupos:{}};
+let ppAvisoTs=0;
+function ppAvisoSalvarLocal(){ try{ localStorage.setItem(PP_AVISO_KEY, JSON.stringify({c:ppAviso, ts:ppAvisoTs})); }catch(e){} }
+function ppAvisoCarregar(){ try{ const d=JSON.parse(localStorage.getItem(PP_AVISO_KEY)||'null'); if(d&&d.c&&!isNaN(+d.c.padrao)){ ppAviso={padrao:+d.c.padrao, grupos:d.c.grupos||{}}; ppAvisoTs=+d.ts||0; } }catch(e){} }
+function ppMergeAviso(rem, ts){
+  if(!rem||isNaN(+rem.padrao)) return;
+  if((+ts||0) > ppAvisoTs){
+    ppAviso={padrao:+rem.padrao, grupos:rem.grupos||{}}; ppAvisoTs=+ts||0; ppAvisoSalvarLocal();
+    if(ppMontado){ ppMontarMapa(); ppResumo(); ppMontarResumoProduto(); ppAtualizarChipAviso(); }
+  }
+}
+// dias de aviso para um produto (prazo do grupo, se houver; senão o padrão)
+function ppDiasAviso(cod){
+  let g=''; try{ g=ppGrupo(cod); }catch(e){}
+  const v=ppAviso&&ppAviso.grupos ? ppAviso.grupos[g] : null;
+  return (v!=null && v!=='' && !isNaN(+v)) ? +v : (+(ppAviso&&ppAviso.padrao)||30);
+}
+ppAvisoCarregar();
 // junta o porta-palete vindo da nuvem (dois locais), cada posição por "mais recente vence"
 function ppMergeNuvem(remoto, remotoDel){
   remoto = remoto||{}; remotoDel = remotoDel||{};
@@ -5645,7 +5698,8 @@ function ppPintar(id){
   if(!at){ el.className='pp-pos vazio'; el.innerHTML=id; el.removeAttribute('title'); ppFiltroPos(id); return; }
   const cor=PP_CORES[ppGrupo(at.cod)]||'pp-b-fecula';
   let cls='pp-pos '+cor; const dias=ppDiasVenc(at.val); let badge='';
-  if(dias!==null){ if(dias<0){cls+=' venc-vencido';badge='<span class="pp-venc-badge">⚠</span>';} else if(dias<=30){cls+=' venc-alerta';badge='<span class="pp-venc-badge">•</span>';} }
+  if(dias===null){ cls+=' venc-semval'; badge='<span class="pp-venc-badge">?</span>'; }
+  else { if(dias<0){cls+=' venc-vencido';badge='<span class="pp-venc-badge">⚠</span>';} else if(dias<=ppDiasAviso(at.cod)){cls+=' venc-alerta';badge='<span class="pp-venc-badge">•</span>';} }
   el.className=cls;
   let txt=id+badge+'<span class="pp-det">'+at.cod+'</span>'; if(at.qtd) txt+='<span class="pp-det">'+at.qtd+' un</span>';
   el.innerHTML=txt;
@@ -5749,14 +5803,15 @@ function ppExportarRelatorio(){
       const vals=Object.keys(r.vals).sort((a,b)=>{ if(!a)return 1; if(!b)return -1; return a.localeCompare(b); });
       vals.forEach(v=>{
         const rv=r.vals[v], d=v?ppDiasVenc(v):null;
-        const sit = d===null ? 'Sem validade' : d<0 ? 'VENCIDO' : d<=30 ? 'Vencendo' : 'OK';
-        const st = d===null ? 0 : d<0 ? 2 : d<=30 ? 3 : 0;
+        const lim=ppDiasAviso(cod);
+        const sit = d===null ? 'Sem validade' : d<0 ? 'VENCIDO' : d<=lim ? 'Vencendo' : 'OK';
+        const st = d===null ? 0 : d<0 ? 2 : d<=lim ? 3 : 0;
         det.push([nomeLoc, grupo, +cod||cod, nome, v?ppFmtData(v):'', sit, d===null?'':d, rv.paletes, rv.qtd, rv.pos.sort().join(', ')]);
         detSt.push([0,0,0,0,st,st,st,0,0,0]);
       });
       const prox=vals.find(v=>v)||'', dp=prox?ppDiasVenc(prox):null;
       res.push([nomeLoc, grupo, +cod||cod, nome, r.paletes, r.qtd, prox?ppFmtData(prox):'', dp===null?'':dp]);
-      const st = dp===null ? 0 : dp<0 ? 2 : dp<=30 ? 3 : 0;
+      const st = dp===null ? 0 : dp<0 ? 2 : dp<=ppDiasAviso(cod) ? 3 : 0;
       resSt.push([0,0,0,0,0,0,st,st]);
     });
     if(cods.length){
@@ -5784,9 +5839,10 @@ function ppTooltipMostrar(el, ev){
   const val=el.dataset.ttVal;
   const dias=val?ppDiasVenc(val):null;
   let vencHtml='';
+  if(dias===null) vencHtml='<div class="pp-tt-venc" style="color:#7B1FA2">? validade não preenchida</div>';
   if(dias!==null){
     if(dias<0) vencHtml='<div class="pp-tt-venc" style="color:#D32F2F">⚠ VENCIDO</div>';
-    else if(dias<=30) vencHtml='<div class="pp-tt-venc" style="color:#E8A200">• vence em '+dias+' dia'+(dias===1?'':'s')+'</div>';
+    else if(dias<=ppDiasAviso(el.dataset.ttCod)) vencHtml='<div class="pp-tt-venc" style="color:#E8A200">• vence em '+dias+' dia'+(dias===1?'':'s')+'</div>';
   }
   tt.innerHTML='<div class="pp-tt-barra" style="background:'+cor+'">'+el.dataset.ttNome+'</div>'
     +'<div class="pp-tt-corpo">'
@@ -5809,7 +5865,9 @@ function ppTooltipEsconder(){ const tt=document.getElementById('pp-tooltip'); if
 function ppFiltroPos(id){
   const el=document.getElementById('pp-p-'+id); if(!el) return;
   if(ppFiltroAtivo==='TODOS'){ el.classList.remove('apagado'); return; }
-  const at=ppEstadoLocal()[id]; el.classList.toggle('apagado',(at?ppGrupo(at.cod):null)!==ppFiltroAtivo);
+  const at=ppEstadoLocal()[id];
+  if(ppFiltroAtivo==='SEMVAL'){ el.classList.toggle('apagado', !(at && !at.val)); return; }
+  el.classList.toggle('apagado',(at?ppGrupo(at.cod):null)!==ppFiltroAtivo);
 }
 function ppAplicarFiltroTodas(){ document.querySelectorAll('#pp-mapa .pp-pos').forEach(el=>ppFiltroPos(el.id.slice(5))); }
 function ppFiltrar(f){
@@ -5822,17 +5880,21 @@ function ppMontarResumoProduto(){
   const box=document.getElementById('pp-resumo-prod'); if(!box) return;
   if(ppFiltroAtivo==='TODOS'){ box.classList.remove('show'); box.innerHTML=''; return; }
   const e=ppEstadoLocal();
+  const filtroSV = ppFiltroAtivo==='SEMVAL';
+  const tituloF = filtroSV ? 'Sem validade preenchida' : PP_NOMES_GRUPO[ppFiltroAtivo];
   const porItem={};
-  Object.values(e).forEach(at=>{
-    if(ppGrupo(at.cod)!==ppFiltroAtivo) return;
+  Object.keys(e).forEach(id=>{
+    const at=e[id]; if(!at) return;
+    if(filtroSV ? !!at.val : ppGrupo(at.cod)!==ppFiltroAtivo) return;
     if(!porItem[at.cod]) porItem[at.cod]={paletes:0,qtd:0,validades:{}};
     const r=porItem[at.cod]; r.paletes++; r.qtd+=(parseFloat(at.qtd)||0);
-    const v=at.val||'sem'; if(!r.validades[v]) r.validades[v]={paletes:0,qtd:0};
-    r.validades[v].paletes++; r.validades[v].qtd+=(parseFloat(at.qtd)||0);
+    const v=at.val||'sem'; if(!r.validades[v]) r.validades[v]={paletes:0,qtd:0,pos:[]};
+    r.validades[v].paletes++; r.validades[v].qtd+=(parseFloat(at.qtd)||0); r.validades[v].pos.push(id);
   });
   const cods=Object.keys(porItem);
-  let html='<div class="pp-rp-titulo"><span class="pp-rp-dot '+PP_CORES[ppFiltroAtivo]+'"></span>Resumo · '+PP_NOMES_GRUPO[ppFiltroAtivo]+'</div>';
-  if(cods.length===0){ html+='<div class="pp-rp-vazio">Nenhum palete de '+PP_NOMES_GRUPO[ppFiltroAtivo]+' armazenado no momento.</div>'; box.innerHTML=html; box.classList.add('show'); return; }
+  const dotF = filtroSV ? '<span class="pp-rp-dot" style="background:#fff;box-shadow:inset 0 0 0 3px #7B1FA2"></span>' : '<span class="pp-rp-dot '+PP_CORES[ppFiltroAtivo]+'"></span>';
+  let html='<div class="pp-rp-titulo">'+dotF+'Resumo · '+tituloF+'</div>';
+  if(cods.length===0){ html+='<div class="pp-rp-vazio">'+(filtroSV?'Todas as posições ocupadas têm validade preenchida ✓':'Nenhum palete de '+tituloF+' armazenado no momento.')+'</div>'; box.innerHTML=html; box.classList.add('show'); return; }
   let totPal=0,totQtd=0;
   cods.sort((a,b)=>ppNome(a).localeCompare(ppNome(b)));
   cods.forEach(cod=>{
@@ -5846,13 +5908,14 @@ function ppMontarResumoProduto(){
     vals.forEach(v=>{
       const sv=r.validades[v]; const dias=v==='sem'?null:ppDiasVenc(v);
       let cor='#bbb', cls='', txt=v==='sem'?'Sem validade':'Vence '+ppFmtData(v);
-      if(dias!==null){ if(dias<0){cor='var(--vencido,#D32F2F)';cls='pp-tag-venc';} else if(dias<=30){cor='var(--alerta,#E8A200)';cls='pp-tag-alerta';} }
-      html+='<div class="pp-sub-linha"><div class="pp-sub-tag"><span class="pp-sub-dot" style="background:'+cor+'"></span><span class="'+cls+'">'+txt+'</span></div>'
+      if(dias===null){ cor='#7B1FA2'; cls='pp-tag-semval'; }
+      else { if(dias<0){cor='var(--vencido,#D32F2F)';cls='pp-tag-venc';} else if(dias<=ppDiasAviso(cod)){cor='var(--alerta,#E8A200)';cls='pp-tag-alerta';} }
+      html+='<div class="pp-sub-linha"><div class="pp-sub-tag"><span class="pp-sub-dot" style="background:'+cor+'"></span><span class="'+cls+'">'+txt+'</span><span class="pp-sub-pos">'+(sv.pos||[]).sort().join(', ')+'</span></div>'
         +'<div class="pp-sub-vals"><div class="v"><div class="n">'+sv.paletes+'</div><div class="l">paletes</div></div><div class="v"><div class="n">'+sv.qtd+'</div><div class="l">itens</div></div></div></div>';
     });
     html+='</div></div>';
   });
-  html+='<div class="pp-rp-total"><div>Total '+PP_NOMES_GRUPO[ppFiltroAtivo]+'</div><div class="pp-rp-vals"><div class="pp-rp-val"><div class="n">'+totPal+'</div><div class="l">paletes</div></div><div class="pp-rp-val"><div class="n">'+totQtd+'</div><div class="l">itens</div></div></div></div>';
+  html+='<div class="pp-rp-total"><div>Total '+tituloF+'</div><div class="pp-rp-vals"><div class="pp-rp-val"><div class="n">'+totPal+'</div><div class="l">paletes</div></div><div class="pp-rp-val"><div class="n">'+totQtd+'</div><div class="l">itens</div></div></div></div>';
   box.innerHTML=html; box.classList.add('show');
 }
 function ppTrocarLocal(loc){
@@ -5897,20 +5960,64 @@ function ppLiberar(){
 }
 function ppResumo(){
   const est=ppEstrutura(); const e=ppEstadoLocal(); const ocup=Object.keys(e).length;
-  let vencendo=0,vencido=0;
-  Object.values(e).forEach(at=>{ const d=ppDiasVenc(at.val); if(d!==null){ if(d<0)vencido++; else if(d<=30)vencendo++; } });
+  let vencendo=0,vencido=0,semval=0;
+  Object.values(e).forEach(at=>{ const d=ppDiasVenc(at.val); if(d===null){ semval++; } else { if(d<0)vencido++; else if(d<=ppDiasAviso(at.cod))vencendo++; } });
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('pp-semval-n', semval?'('+semval+')':'');
   set('pp-ocup',ocup); set('pp-livre',ppTotal(ppLocal)-ocup); set('pp-vencendo',vencendo); set('pp-vencido',vencido);
   est.modulos.forEach(([nome,porNivel,niveis])=>{ const tot=porNivel*niveis; let oc=0; Object.keys(e).forEach(id=>{ if(id.startsWith(nome))oc++; }); const el=document.getElementById('pp-oc-'+nome); if(el) el.textContent=' ('+oc+'/'+tot+' cheias)'; });
 }
 function ppInit(){
   _ppItensCache=null;   // relê o cadastro (itens novos aparecem)
+  ppAtualizarChipAviso();
   if(!ppMontado){ ppEstrutCarregar(); ppCarregarLocal(); ppMontarMapa(); ppMontado=true; }
   ppMontarSelect();
   ppResumo(); ppMontarResumoProduto();
   // botão de editar estrutura só para admin
   const be=document.getElementById('pp-btn-estrut');
   if(be) be.style.display = (usuarioAtual && usuarioAtual.role==='admin') ? '' : 'none';
+}
+
+// ===== Janela do parâmetro de aviso de validade =====
+function ppAtualizarChipAviso(){
+  const el=document.getElementById('pp-aviso-txt'); if(!el) return;
+  const temGrupo=Object.keys(ppAviso.grupos||{}).some(g=>ppAviso.grupos[g]!=null && ppAviso.grupos[g]!=='');
+  el.textContent=(+ppAviso.padrao)+' dias'+(temGrupo?'*':'');
+  const bt=el.closest('button'); if(bt) bt.title='Aviso de validade próxima: '+(+ppAviso.padrao)+' dias'+(temGrupo?' (com prazo próprio em algum grupo)':'')+' · clique para configurar';
+}
+function ppAvisoAbrir(){
+  const admin=!!(usuarioAtual && usuarioAtual.role==='admin');
+  document.getElementById('ppa-padrao').value=ppAviso.padrao;
+  document.getElementById('ppa-grupos').innerHTML=['BATATA','FARINHA','TAPIOCA','FECULA'].map(g=>{
+    const v=(ppAviso.grupos||{})[g];
+    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="width:12px;height:12px;border-radius:3px;background:'+(PP_COR_HEX[g]||'#555')+'"></span>'
+      +'<span style="flex:1;font-size:14px;font-weight:600">'+PP_NOMES_GRUPO[g]+'</span>'
+      +'<input type="number" min="0" inputmode="numeric" id="ppa-g-'+g+'" value="'+(v!=null&&v!==''?v:'')+'" placeholder="'+ppAviso.padrao+'" style="width:84px;padding:8px;border:1px solid var(--border);border-radius:7px;text-align:center;font-family:inherit;font-size:14px">'
+      +'<span style="font-size:12px;color:var(--text3)">dias</span></div>';
+  }).join('');
+  document.querySelectorAll('#ppa-bg input').forEach(i=>i.disabled=!admin);
+  document.getElementById('ppa-ro').style.display=admin?'none':'';
+  document.getElementById('ppa-salvar').style.display=admin?'':'none';
+  document.getElementById('ppa-bg').classList.add('open');
+}
+function ppAvisoFechar(){ document.getElementById('ppa-bg').classList.remove('open'); }
+function ppAvisoSalvarForm(){
+  if(!(usuarioAtual && usuarioAtual.role==='admin')){ toast('Apenas administrador'); return; }
+  const pad=parseInt(document.getElementById('ppa-padrao').value,10);
+  if(isNaN(pad)||pad<0){ toast('Informe o prazo padrão em dias (0 ou mais)'); return; }
+  const grupos={};
+  for(const g of ['BATATA','FARINHA','TAPIOCA','FECULA']){
+    const raw=document.getElementById('ppa-g-'+g).value.trim();
+    if(raw==='') continue;
+    const n=parseInt(raw,10); if(isNaN(n)||n<0){ toast('Prazo inválido em '+PP_NOMES_GRUPO[g]); return; }
+    grupos[g]=n;
+  }
+  ppAviso={padrao:pad, grupos}; ppAvisoTs=Date.now(); ppAvisoSalvarLocal();
+  if(API_URL) pushMeta();
+  ppAvisoFechar(); ppAtualizarChipAviso();
+  ppMontarMapa(); ppResumo(); ppMontarResumoProduto();
+  toast('Aviso de validade atualizado ✓');
 }
 
 // ===== Editor de estrutura dos módulos (admin) =====
@@ -6094,7 +6201,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v142';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v143';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
