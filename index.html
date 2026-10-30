@@ -1468,6 +1468,14 @@ let empresaLanc='MATRIZ', empresaVis='MATRIZ';
 let ultimaEdicaoEstEmp=0, estEmpPushTimer;
 const EST_CEARA_KEY='controle_estoque_ceara_v1', EST_OSORIO_KEY='controle_estoque_osorio_v1', EST_EMP_TS_KEY='controle_estoque_emp_ts';
 function estoqueDe(emp){ return emp==='CEARA'?estoqueCeara : emp==='OSORIO'?estoqueOsorio : estoqueQtd; }
+// Estoque da MATRIZ para consulta (agenda, painel, Estoque × A carregar, medidores):
+// lançamento + porta-palete da Matriz (mesma regra do resumo visual). Só leitura.
+function estoqueMatrizTotal(){
+  const est=Object.assign({}, estoqueQtd||{});
+  let pal={}; try{ pal=(typeof ppTotaisPorCod==='function')?ppTotaisPorCod('matriz'):{}; }catch(e){ pal={}; }
+  Object.keys(pal).forEach(c=>{ if(pal[c]>0) est[c]=(+est[c]||0)+pal[c]; });
+  return est;
+}
 function loadEstEmp(){ try{ estoqueCeara=JSON.parse(localStorage.getItem(EST_CEARA_KEY)||'{}')||{}; estoqueOsorio=JSON.parse(localStorage.getItem(EST_OSORIO_KEY)||'{}')||{}; }catch(e){} }
 function saveEstEmpLocal(){ try{ localStorage.setItem(EST_CEARA_KEY,JSON.stringify(estoqueCeara)); localStorage.setItem(EST_OSORIO_KEY,JSON.stringify(estoqueOsorio)); }catch(e){} }
 function getEstEmpTs(){ return parseInt(localStorage.getItem(EST_EMP_TS_KEY)||'0'); }
@@ -2743,9 +2751,9 @@ function renderCon(){
   }));
 
   // Estoque disponível em KG (converte fardos→kg)
-  const estoqueKg={};
-  Object.keys(estoqueQtd).forEach(cod=>{
-    estoqueKg[cod] = itemParaKg(parseInt(cod), estoqueQtd[cod]);
+  const estoqueKg={}; const _estT=estoqueMatrizTotal();
+  Object.keys(_estT).forEach(cod=>{
+    estoqueKg[cod] = itemParaKg(parseInt(cod), _estT[cod]);
   });
 
   let nok=0,nf=0;
@@ -2893,9 +2901,10 @@ function buildFardosTable(cargasPeriodo){
     if(!carItem[cod]){ const p=PMAP[cod]; carItem[cod]={nome:(p?p.nome:it.nome),tp:(p?p.tp:it.tp),granel:(p?!!p.granel:!!it.granel),peso:(p?(p.peso||0):0),qtd:0}; }
     carItem[cod].qtd += (it.qtd||0);
   }));
+  const _estT=estoqueMatrizTotal();
   const linhas=Object.keys(carItem).map(cod=>{
     const d=carItem[cod];
-    const est=estoqueQtd[cod]||0;
+    const est=_estT[cod]||0;
     const falta=Math.max(0, d.qtd-est);
     const faltaKg = d.granel ? falta : (d.peso>0 ? falta*d.peso : 0);
     return {nome:d.nome, tp:d.tp, granel:d.granel, aCar:d.qtd, est, falta, faltaKg};
@@ -3049,7 +3058,8 @@ function renderDash(){
   // kg a carregar por grupo (período) e kg em estoque por grupo (atual)
   const carGrp={}, estGrp={};
   cf.forEach(c=>c.itens.forEach(it=>{ const g=grupoEfetivo(it.nome,it.tp); carGrp[g]=(carGrp[g]||0)+(it.peso||0); }));
-  Object.keys(estoqueQtd).forEach(cod=>{ const p=PMAP[cod]; if(!p)return; const kg=p.granel?estoqueQtd[cod]:(p.peso>0?p.peso*estoqueQtd[cod]:0); const g=grupoEfetivo(p.nome,p.tp); estGrp[g]=(estGrp[g]||0)+kg; });
+  const _estT=estoqueMatrizTotal();
+  Object.keys(_estT).forEach(cod=>{ const p=PMAP[cod]; if(!p)return; const kg=p.granel?_estT[cod]:(p.peso>0?p.peso*_estT[cod]:0); const g=grupoEfetivo(p.nome,p.tp); estGrp[g]=(estGrp[g]||0)+kg; });
   // mostra só os grupos que têm algo PROGRAMADO no período
   const grupos=Object.keys(carGrp).filter(g=>carGrp[g]>0).sort();
   const max=Math.max(1,...grupos.map(g=>Math.max(estGrp[g]||0,carGrp[g]||0)));
@@ -3143,12 +3153,13 @@ function renderMaquinas(){
   let falta={'6X5':0,'30X1':0,'10X1':0};
   // TOTAL PROGRAMADO (resumo): sem descontar estoque
   let progM={'6X5':0,'30X1':0,'10X1':0};
+  const _estT=estoqueMatrizTotal();
   Object.keys(prog).forEach(cod=>{
     const p=PMAP[cod]; if(!p) return;
     const m=maqDoProduto(p); if(!m) return;
     const progFardos = qtdEmFardos(p, prog[cod], m);         // converte kg→fardos se for item KG
     progM[m]+=progFardos;
-    const est=estoqueQtd[cod]||0;
+    const est=_estT[cod]||0;
     const estFardos = qtdEmFardos(p, est, m);                 // estoque também na mesma unidade
     const f=Math.max(0, progFardos-estFardos);
     if(f>0) falta[m]+=f;
@@ -4009,7 +4020,8 @@ function cmOcupacao(){
     });
   });
   const restante={};
-  Object.keys(estoqueQtd||{}).forEach(cod=>{ restante[cod]=estoqueQtd[cod]||0; });
+  const _estR=estoqueMatrizTotal();
+  Object.keys(_estR).forEach(cod=>{ restante[cod]=_estR[cod]||0; });
   const out={};
   Object.keys(porDia).sort().forEach(d=>{
     const o={'6X5':0,'30X1':0,'10X1':0,arrozKg:0};
@@ -5572,6 +5584,9 @@ function ppCarregarLocal(){
 // carrega estrutura e paletes JÁ NA ABERTURA do app (antes só ao abrir a aba):
 // o resumo do estoque usa os totais do porta-palete da Matriz.
 ppEstrutCarregar(); ppCarregarLocal();
+// a Programação e o Painel já foram desenhados antes desta carga: redesenha com o porta-palete
+setTimeout(()=>{ try{ const at=(document.querySelector('.screen.active')||{}).id||'';
+  if(at==='screen-con') renderCon(); else if(at==='screen-dash') renderDash(); else if(at==='screen-comercial') renderComercial(); }catch(e){} },0);
 // total por código num local do porta-palete (mesma unidade do estoque)
 function ppTotaisPorCod(loc){
   const t={}; let d={};
@@ -6260,7 +6275,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v145';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v146';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
