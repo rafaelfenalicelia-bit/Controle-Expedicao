@@ -1120,7 +1120,7 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <button class="btn" style="flex:1;border-color:var(--blue);color:var(--blue);font-weight:700" onclick="imprimirAgenda()">🖨️ Imprimir agenda</button>
   </div>
   <div class="con-fardos">🧱 Total de fardos no período: <b id="con-fardos-tot">0</b></div>
-  <div class="legenda">Qtd em <b class="ok">verde</b> = estoque cobre &nbsp;·&nbsp; <b class="falta">vermelho</b> = falta no estoque</div>
+  <div class="legenda">Qtd em <b class="ok">verde</b> = estoque cobre esta carga &nbsp;·&nbsp; <b class="falta">vermelho</b> = falta no estoque <span style="color:var(--text3)">(o estoque é descontado na sequência das cargas)</span></div>
   <div class="prog-wrap">
     <table class="prog-tbl" id="prog-tbl">
       <thead><tr><th>Data</th><th>Dia</th><th>Destino</th><th>Descrição</th><th>Qtd Total (un)</th><th>Observações</th></tr></thead>
@@ -2290,6 +2290,8 @@ function limparContagem(){
   const nome=empresaLanc==='CEARA'?'CEARÁ':empresaLanc==='OSORIO'?'OSÓRIO':'MATRIZ';
   if(!confirm('Zerar toda a contagem do estoque de '+nome+'?')) return;
   if(empresaLanc==='CEARA') estoqueCeara={}; else if(empresaLanc==='OSORIO') estoqueOsorio={}; else estoqueQtd={};
+  // itens de LOTE: a quantidade vem da soma dos lotes — sem zerar os lotes, os números voltavam
+  if(lotesEst && lotesEst[empresaLanc]){ lotesEst[empresaLanc]={}; saveLotes(); }
   carimbarAtualizacao(empresaLanc);
   marcarPendenteEst(empresaLanc);
   registrarAcao('limpou a contagem do estoque da '+nomeEmpresa(empresaLanc).toUpperCase());
@@ -2763,6 +2765,9 @@ function renderCon(){
   });
 
   const ord=cf.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  // estoque vai sendo CONSUMIDO na sequência das cargas (data e ordem da lista):
+  // verde só se o que sobrou depois das cargas anteriores cobre esta carga.
+  const restKg=Object.assign({}, estoqueKg);
   let rows='', gi=0;
   ord.forEach(c=>{
     const cons=consolidarItensSemEmpresa(c.itens);
@@ -2784,9 +2789,14 @@ function renderCon(){
     }
     itensDisp.forEach((it,i)=>{
       const codEst = ALIAS_MAP[it.cod] || it.cod;
-      const dispKg = estoqueKg[codEst]||0;
-      const demKg  = progTotKg[codEst]||0;
-      const cobre  = dispKg >= demKg;
+      const dispKg = restKg[codEst]||0;                 // o que sobrou para esta carga
+      const demKg  = itemParaKg(it.cod, it.qtd)||0;     // o que esta carga pede
+      const cobre  = dispKg >= demKg - 1e-6;
+      if(cobre) restKg[codEst] = Math.max(0, dispKg - demKg);   // só reserva se atende a carga INTEIRA; senão o saldo fica para as próximas
+      const fator = (it.qtd>0 && demKg>0) ? it.qtd/demKg : 0;
+      const dispUn = Math.round(dispKg*fator);
+      const dica = cobre ? `Disponível para esta carga: ${dispUn.toLocaleString('pt-BR')}${it.granel?' kg':''}`
+                         : (dispUn>0 ? `Estoque cobre só ${dispUn.toLocaleString('pt-BR')}${it.granel?' kg':''} (faltam ${(it.qtd-dispUn).toLocaleString('pt-BR')})` : 'Sem estoque restante para esta carga');
       // exibe alias info se houver mapeamento
       const aliasLabel = ALIAS_MAP[it.cod]
         ? `<span style="font-size:10px;color:var(--text3)"> →${PMAP[codEst]?PMAP[codEst].nome:codEst}</span>` : '';
@@ -2798,7 +2808,7 @@ function renderCon(){
       }
       const nomeReal = (PMAP[codEst] && PMAP[codEst].nome) ? PMAP[codEst].nome : it.nome;
       rows+=`<td class="pg-desc">${esc(nomeReal)}${aliasLabel}</td>`;
-      rows+=`<td class="pg-qtd ${cobre?'pg-ok':'pg-falta'}">${it.qtd}${it.granel?' kg':''}</td>`;
+      rows+=`<td class="pg-qtd ${cobre?'pg-ok':'pg-falta'}" title="${dica}">${it.qtd}${it.granel?' kg':''}</td>`;
       if(i===0){ rows+=`<td rowspan="${n}" class="pg-obs">${obsCell}</td>`; }
       rows+='</tr>';
     });
@@ -6275,7 +6285,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v146';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v149';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
