@@ -255,6 +255,15 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .resumo-nome{flex:1;line-height:1.25}
 .resumo-data{color:var(--text3);font-size:11px}
 .fardos-badge{background:var(--redXL);color:var(--red);font-weight:700;padding:4px 12px;border-radius:999px;font-size:13px;white-space:nowrap;border:1px solid var(--redL)}
+.rc-row{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px}
+.rc-row:last-child{border-bottom:none}
+.rc-dt{display:flex;flex-direction:column;line-height:1.1}.rc-dt b{font-size:14px}.rc-dt span{font-size:10px;color:var(--text3);font-weight:600}
+.rc-nm{line-height:1.25}.rc-cod{color:var(--text3);font-size:12px}
+.rc-pv{text-align:right;white-space:nowrap}
+.rc-kg{background:var(--redXL);color:var(--red);font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid var(--redL);font-size:13px}
+.rc-kg.big{font-size:15px}
+.rc-fd{color:var(--text2);font-size:12px;font-weight:600;margin-left:4px}
+@media (max-width:560px){ .rc-row{grid-template-columns:44px 1fr;row-gap:4px} .rc-row .rc-pv{grid-column:2;text-align:left} }
 .resumo-tot{display:flex;justify-content:space-between;align-items:center;padding:12px 0 2px;font-weight:700;font-size:15px;border-top:2px solid var(--border2);margin-top:6px}
 /* calculadora de produção */
 .calc-linha{display:flex;gap:10px;margin-bottom:14px}
@@ -1216,9 +1225,9 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
     <div id="dash-fardos" style="display:none;overflow:auto"></div>
   </div>
   <div class="card">
-    <div class="ctitle">🚚 Cargas do período · fardos</div>
+    <div class="ctitle">🚚 Cargas do período · peso e fardos</div>
     <div id="dash-resumo"></div>
-    <div class="resumo-tot"><span>Total de fardos no período</span><span class="fardos-badge" style="font-size:16px" id="dash-tot-fardos">0</span></div>
+    <div class="resumo-tot"><span>Total do período</span><span class="rc-pv" id="dash-tot-fardos">0</span></div>
   </div>
 </div>
 
@@ -2837,6 +2846,13 @@ function renderCon(){
   document.getElementById('con-fardos-tot').textContent=fmtFardos(totFardosCon)+' fardos';
 }
 function fmtKg(n){ return Math.round(n).toLocaleString('pt-BR')+' kg'; }
+// peso total da carga em kg (mesma conta da Programação)
+function pesoDaCarga(c){
+  return consolidarItensSemEmpresa(c.itens||[]).reduce((s,x)=>{
+    const p=PMAP[x.cod]; const pu=p?(p.peso||0):0; const granel=p?p.granel:x.granel;
+    return s+((granel||pu<=0)?(x.qtd||0):(x.qtd||0)*pu);
+  },0);
+}
 function fmtFardos(n){ const r=Math.round(n*10)/10; return (Number.isInteger(r)?r:r.toFixed(1)).toString().replace('.',','); }
 // Fardos de uma carga: converte ITEM A ITEM pela máquina de cada um.
 // 10X1 usa fardo de 10 kg; todo o resto (30X1, 6X5, granel, etc.) usa 30 kg.
@@ -3109,13 +3125,16 @@ function renderDash(){
   aplicarDashView();
   // resumo de cargas + fardos (peso total / 30)
   const ord=cf.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
-  let resumo='', totFardos=0;
+  let resumo='', totFardos=0, totKg=0;
   ord.forEach(c=>{
     const fardos=fardosDaCarga(c); totFardos+=fardos;
-    resumo+=`<div class="resumo-row"><span class="resumo-nome">${esc(c.num)} · ${esc(c.nome)} <span class="resumo-data">(${fmtData(c.data)})</span></span><span class="fardos-badge">${fmtFardos(fardos)} fardos</span></div>`;
+    const kg=pesoDaCarga(c); totKg+=kg;
+    const dm=(c.data||'').split('-'); const dd=dm.length===3?`${dm[2]}/${dm[1]}`:'—';
+    const cod=(c.num!=null&&String(c.num).trim()!=='')?` <span class="rc-cod">(${esc(c.num)})</span>`:'';
+    resumo+=`<div class="rc-row"><div class="rc-dt"><b>${dd}</b><span>${diaSemana(c.data)}</span></div><div class="rc-nm">${esc(c.nome)}${cod}</div><div class="rc-pv"><span class="rc-kg">${fmtKg(kg)}</span> <span class="rc-fd">(${fmtFardos(fardos)} fardos)</span></div></div>`;
   });
   document.getElementById('dash-resumo').innerHTML=resumo||'<div class="empty">Nenhuma carga no período</div>';
-  document.getElementById('dash-tot-fardos').textContent=fmtFardos(totFardos)+' fardos';
+  document.getElementById('dash-tot-fardos').innerHTML=`<span class="rc-kg big">${fmtKg(totKg)}</span> <span class="rc-fd">(${fmtFardos(totFardos)} fardos)</span>`;
   renderMaquinas();
 }
 
@@ -6353,7 +6372,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v150';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v151';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
