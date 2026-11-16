@@ -380,6 +380,18 @@ textarea:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(20
 .est-vis-tbl td.td-nome{font-size:12px;font-weight:500;white-space:nowrap}
 .est-vis-tbl td.td-fat{text-align:right;font-weight:700;color:#9B0B22}
 .df-tbl{border-collapse:collapse;width:100%;min-width:520px}
+.dfc{border:2px solid var(--red);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.dfc-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:var(--redXL);padding:8px 12px}
+.dfc-t{font-weight:800;font-size:13px;color:var(--red)}
+.dfc-mini{background:#fff;border:1px solid var(--redL);color:var(--red);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;margin-left:4px;cursor:pointer}
+.dfc-dia{padding:6px 12px 8px;border-top:1px solid var(--border)}
+.dfc-diah{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;margin:3px 0 6px;cursor:pointer}
+.dfc-q{font-weight:600;color:var(--text3);font-size:11px}
+.dfc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dfc-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:8px;padding:5px 9px;font-size:12px;background:var(--surface);cursor:pointer}
+.dfc-chip.on{border-color:var(--red);background:var(--redXL)}
+.dfc-c{color:var(--text3);font-size:11px}.dfc-k{color:var(--text2);font-size:11px;font-weight:700}
+.dfc input[type=checkbox]{accent-color:var(--red);width:15px;height:15px;margin:0;cursor:pointer}
 .df-chk{width:36px;text-align:center!important}
 .df-tbl td.df-chk input{width:17px;height:17px;accent-color:var(--red);cursor:pointer}
 .df-tbl tbody tr.df-selrow{background:#FDECEF!important}
@@ -2980,10 +2992,47 @@ function buildFardosTable(cargasPeriodo){
     : '<div class="empty">Nada programado no período</div>';
 }
 // abre a tabela de fardos num modal, usando o período filtrado da Agenda
+// ----- escolha de quais cargas entram no comparativo -----
+let _fardCf=[], _fardSel=new Set(), _fardRecolhido=false;
+function _fardId(c,i){ return c.id!=null ? String(c.id) : ('i'+i); }
+function _fardSelecionadas(){ return _fardCf.filter((c,i)=>_fardSel.has(_fardId(c,i))); }
+function fardCargasHTML(){
+  const porDia={}, ordem=[];
+  _fardCf.forEach((c,i)=>{ const d=c.data||''; if(!porDia[d]){ porDia[d]=[]; ordem.push(d); } porDia[d].push({c,i}); });
+  const nSel=_fardSelecionadas().length;
+  let h=`<div class="dfc-h"><span class="dfc-t">🚚 Cargas consideradas: ${nSel} de ${_fardCf.length}</span><span class="dfc-bts">
+    <button class="dfc-mini" onclick="fardCargasTodas(true)">todas</button><button class="dfc-mini" onclick="fardCargasTodas(false)">nenhuma</button>
+    <button class="dfc-mini" onclick="fardCargasRecolher()">${_fardRecolhido?'▼ mostrar':'▲ recolher'}</button></span></div>`;
+  if(_fardRecolhido) return h;
+  ordem.forEach(d=>{
+    const lst=porDia[d];
+    const sel=lst.filter(o=>_fardSel.has(_fardId(o.c,o.i)));
+    const kgSel=sel.reduce((a,o)=>a+pesoDaCarga(o.c),0), kgTot=lst.reduce((a,o)=>a+pesoDaCarga(o.c),0);
+    const dm=d.split('-'), dd=dm.length===3?`${dm[2]}/${dm[1]}`:'Sem data';
+    const tudo=sel.length===lst.length, algum=sel.length>0&&!tudo;
+    h+=`<div class="dfc-dia"><label class="dfc-diah"><input type="checkbox" ${tudo?'checked':''} ${algum?'data-ind="1"':''} onchange="fardDiaToggle('${d}',this.checked)"> ${diaSemana(d)} ${dd} <span class="dfc-q">${sel.length} de ${lst.length} · ${fmtKg(sel.length?kgSel:kgTot)}</span></label><div class="dfc-chips">`;
+    lst.forEach(o=>{ const id=_fardId(o.c,o.i), on=_fardSel.has(id);
+      const cod=(o.c.num!=null&&String(o.c.num).trim()!=='')?` <span class="dfc-c">(${esc(o.c.num)})</span>`:'';
+      h+=`<label class="dfc-chip${on?' on':''}"><input type="checkbox" ${on?'checked':''} onchange="fardCargaToggle('${id}',this.checked)">${esc(o.c.nome||'')}${cod} <span class="dfc-k">${fmtKg(pesoDaCarga(o.c))}</span></label>`; });
+    h+='</div></div>';
+  });
+  return h;
+}
+function fardAtualizar(){
+  const box=document.getElementById('df-cargas'); if(box){ box.innerHTML=fardCargasHTML(); box.querySelectorAll('input[data-ind]').forEach(x=>x.indeterminate=true); }
+  const pr=document.getElementById('fard-print'); if(pr) pr.innerHTML=buildFardosTable(_fardSelecionadas());
+  somarFardSel();
+}
+function fardCargaToggle(id,on){ if(on) _fardSel.add(id); else _fardSel.delete(id); fardAtualizar(); }
+function fardDiaToggle(d,on){ _fardCf.forEach((c,i)=>{ if((c.data||'')===d){ const id=_fardId(c,i); if(on) _fardSel.add(id); else _fardSel.delete(id); } }); fardAtualizar(); }
+function fardCargasTodas(on){ _fardSel=new Set(on?_fardCf.map((c,i)=>_fardId(c,i)):[]); fardAtualizar(); }
+function fardCargasRecolher(){ _fardRecolhido=!_fardRecolhido; fardAtualizar(); }
 function abrirFardosAgenda(){
   const ini=val('con-ini'), fim=val('con-fim');
   const cf=cargas.filter(c=>{ const d=c.data||''; if(ini&&d<ini)return false; if(fim&&d>fim)return false; return true; });
-  const html=buildFardosTable(cf);
+  _fardCf=cf.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  _fardSel=new Set(_fardCf.map((c,i)=>_fardId(c,i)));   // abre com todas marcadas (igual antes)
+  const html=buildFardosTable(_fardSelecionadas());
   let ov=document.getElementById('fard-ov');
   if(!ov){ ov=document.createElement('div'); ov.id='fard-ov';
     ov.style.cssText='position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:14px';
@@ -2997,6 +3046,7 @@ function abrirFardosAgenda(){
         <button class="btn btn-sm" onclick="fecharFardosAgenda()">Fechar</button>
       </div>
     </div>
+    <div class="dfc" id="df-cargas"></div>
     <div class="df-selbar" id="df-selbar">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="df-selcnt"><b id="df-nsel">0</b> selecionados</span>
@@ -3009,10 +3059,10 @@ function abrirFardosAgenda(){
       </div>
     </div>
     <div style="overflow:auto" id="fard-print">${html}</div>
-    <div class="psub" style="margin-top:8px">Estoque considerado: MATRIZ. Falta (kg) = falta × peso do fardo (granel já em kg). Marque linhas para somar um subtotal.</div>
+    <div class="psub" style="margin-top:8px">Estoque considerado: MATRIZ. Falta (kg) = falta × peso do fardo (granel já em kg). Marque linhas para somar um subtotal. A tabela soma só as cargas marcadas acima.</div>
   </div>`;
   ov.style.display='flex';
-  somarFardSel();
+  fardAtualizar();
 }
 function somarFardSel(){
   const chks=document.querySelectorAll('.df-sel');
@@ -3047,6 +3097,7 @@ function imprimirFardos(){
     </style></head><body>
     <h1>Estoque × A carregar (fardos)</h1>
     <div class="sub">${periodo} · Estoque considerado: MATRIZ · Falta (kg) = falta × peso do fardo</div>
+    <div class="sub"><b>Cargas consideradas (${_fardSelecionadas().length} de ${_fardCf.length}):</b> ${_fardSelecionadas().map(c=>esc((c.data?fmtData(c.data).slice(0,5)+' ':'')+(c.nome||'')+((c.num!=null&&String(c.num).trim()!=='')?' ('+c.num+')':''))).join(' · ')||'nenhuma'}</div>
     ${tbl.innerHTML}
     <script>window.onload=function(){window.print();}<\/script>
     </body></html>`);
@@ -6372,7 +6423,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v151';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v152';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
