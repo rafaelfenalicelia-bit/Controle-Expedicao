@@ -1764,8 +1764,9 @@ function pull(silencioso, forcar){
   if(pushPendente && (Date.now()-pushPendenteDesde > 15000)) pushPendente=false;
   // sempre respeita um envio de carga ainda não confirmado
   if(pushPendente) return;
-  if(!forcar){
+  if(!forcar && usuarioAtual){
     // no modo normal, não atrapalha quem está digitando nem logo após uma edição
+    // (na tela de login não há edição a proteger: sincroniza mesmo com o cursor no campo)
     if(document.activeElement && document.activeElement.tagName==='INPUT') return;
     if(Date.now()-ultimaEdicao < 20000) return;
   }
@@ -4611,26 +4612,66 @@ function loginTab(t){
   clearPin('pin-entrar'); clearPin('pin-cadastro');
   setTimeout(()=>document.getElementById(t==='entrar'?'l-nome':'c-nome').focus(),50);
 }
-function fazerLogin(){
+// Busca a lista de usuários direto na nuvem (usado no login/cadastro de aparelho novo).
+// O servidor do Render pode estar "dormindo": tenta algumas vezes, avisando quem está esperando.
+let _buscandoUsers=false;
+async function buscarUsuariosNuvem(onMsg){
+  if(!API_URL) return false;
+  const tentativas=5;
+  for(let i=1;i<=tentativas;i++){
+    try{
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 25000);
+      const r=await fetch(API_URL+'?action=load&t='+Date.now(),{signal:ctrl.signal}); clearTimeout(to);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      if(d && d.meta && Array.isArray(d.meta.users)) mergeUsersDaNuvem(d.meta.users, d.meta.usersTs||0, d.meta.usersDel||[]);
+      return true;
+    }catch(e){
+      if(i<tentativas){ if(onMsg) onMsg(`⏳ Servidor acordando… tentativa ${i+1} de ${tentativas}`); await new Promise(res=>setTimeout(res,4000)); }
+    }
+  }
+  return false;
+}
+async function fazerLogin(){
+  if(_buscandoUsers) return;
   const nome=(document.getElementById('l-nome').value||'').trim().toUpperCase();
   const pin=getPin('pin-entrar');
   const err=document.getElementById('l-err');
   if(!nome){err.textContent='Digite seu nome';return;}
   if(pin.length<4){err.textContent='Digite a senha completa (4 dígitos)';return;}
-  const user=loadUsers().find(u=>u.nome===nome&&u.pin===pin);
-  if(!user){err.textContent='Usuário ou senha incorretos ❌';clearPin('pin-entrar');return;}
-  saveSession({nome:user.nome,role:user.role,tabs:user.tabs||[]});
-  abrirApp();
+  const entrar=(user)=>{ err.style.color=''; saveSession({nome:user.nome,role:user.role,tabs:user.tabs||[]}); abrirApp(); };
+  let user=loadUsers().find(u=>u.nome===nome&&u.pin===pin);
+  if(user){ entrar(user); return; }
+  // não bateu com a lista DESTE aparelho: confere na nuvem (aparelho novo ou senha trocada pelo administrador)
+  if(API_URL){
+    _buscandoUsers=true; err.style.color='var(--text2)'; err.textContent='🔄 Conferindo usuário e senha na nuvem…';
+    const ok=await buscarUsuariosNuvem(m=>{ err.textContent=m; });
+    _buscandoUsers=false; err.style.color='';
+    user=loadUsers().find(u=>u.nome===nome&&u.pin===pin);
+    if(user){ entrar(user); return; }
+    if(!ok){ err.textContent='Sem conexão com a nuvem — não deu para conferir a senha. Verifique a internet e tente de novo.'; clearPin('pin-entrar'); return; }
+  }
+  err.textContent='Usuário ou senha incorretos ❌'; clearPin('pin-entrar');
 }
-function fazerCadastro(){
+async function fazerCadastro(){
+  if(_buscandoUsers) return;
   const nome=(document.getElementById('c-nome').value||'').trim().toUpperCase();
   const pin=getPin('pin-cadastro');
   const err=document.getElementById('c-err');
   if(!nome){err.textContent='Digite um nome';return;}
   if(pin.length<4){err.textContent='Digite a senha completa (4 dígitos)';return;}
   if(nome===ADMIN_NAME){err.textContent='Este nome é reservado';return;}
+  // confere na nuvem ANTES de criar: num aparelho novo a lista local está vazia, e um
+  // "cadastro" com nome já existente sobrescrevia a senha definida pelo administrador.
+  if(API_URL){
+    _buscandoUsers=true; err.style.color='var(--text2)'; err.textContent='🔄 Conferindo na nuvem…';
+    const ok=await buscarUsuariosNuvem(m=>{ err.textContent=m; });
+    _buscandoUsers=false; err.style.color='';
+    if(!ok){ err.textContent='Sem conexão com a nuvem — tente de novo em instantes.'; return; }
+    err.textContent='';
+  }
   const users=loadUsers();
-  if(users.find(u=>u.nome===nome)){err.textContent='Usuário já existe. Faça login.';return;}
+  if(users.find(u=>u.nome===nome)){err.textContent='Usuário já existe. Faça login (se esqueceu a senha, peça ao administrador para trocar).';return;}
   users.push({nome,pin,role:'user',tabs:['est','con'],ts:Date.now()}); 
   const del=getUsersDel().filter(n=>n!==nome); setUsersDel(del);
   salvarUsersSync(users);
@@ -6423,7 +6464,7 @@ setInterval(()=>{
 initAuth();
 
 // ===== Versão do app + atualização automática =====
-const APP_VERSAO = 'v152';   // <- número trocado a cada atualização
+const APP_VERSAO = 'v153';   // <- número trocado a cada atualização
 (function(){
   const tag=document.getElementById('ver-tag'); if(tag) tag.textContent=APP_VERSAO;
   const lv=document.getElementById('login-ver');
